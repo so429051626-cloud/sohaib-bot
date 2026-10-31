@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#132544"/>
+      <stop offset="0.55" stop-color="#0B1220"/>
+      <stop offset="1" stop-color="#04392D"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#10B981" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#10B981" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#E6EDF5"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34D399" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#34D399" stop-opacity="0.85"/>
+      <stop offset="0.82" stop-color="#34D399" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#34D399" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="beamCore" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#A7F3D0" stop-opacity="0"/>
+      <stop offset="0.15" stop-color="#ECFDF5"/>
+      <stop offset="0.85" stop-color="#ECFDF5"/>
+      <stop offset="1" stop-color="#A7F3D0" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blur" x="-10%" y="-150%" width="120%" height="400%"><feGaussianBlur stdDeviation="9"/></filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#glow)"/>
+  
+  <rect x="132" y="92" width="248" height="320" rx="30" fill="url(#paper)" filter="url(#shadow)"/>
+  <rect x="160" y="124" width="192" height="36" rx="11" fill="#10B981"/>
+  <rect x="268" y="137" width="64" height="10" rx="5" fill="#ECFDF5" opacity="0.95"/>
+  <rect x="180" y="137" width="52" height="10" rx="5" fill="#ECFDF5" opacity="0.75"/>
+  <rect x="152" y="262" width="208" height="38" rx="11" fill="#FCD34D" opacity="0.55"/>
+  <line x1="248" y1="176" x2="248" y2="384" stroke="#D5DEE9" stroke-width="3"/>
+  <g fill="#7C8BA1">
+    <rect x="262" y="188" width="88" height="12" rx="6"/>
+    <rect x="276" y="228" width="74" height="12" rx="6"/>
+    <rect x="258" y="275" width="92" height="12" rx="6" fill="#92400E" opacity="0.75"/>
+    <rect x="270" y="318" width="80" height="12" rx="6"/>
+    <rect x="282" y="358" width="68" height="12" rx="6"/>
+  </g>
+  <g fill="#C3CEDC">
+    <rect x="162" y="188" width="70" height="12" rx="6"/>
+    <rect x="162" y="228" width="70" height="12" rx="6"/>
+    <rect x="162" y="275" width="70" height="12" rx="6" fill="#B45309" opacity="0.6"/>
+    <rect x="162" y="318" width="70" height="12" rx="6"/>
+    <rect x="162" y="358" width="70" height="12" rx="6"/>
+  </g>
+  <rect x="104" y="204" width="304" height="26" rx="13" fill="url(#beam)" filter="url(#blur)" opacity="0.95"/>
+  <rect x="112" y="214" width="288" height="6" rx="3" fill="url(#beamCore)"/>
+  <circle cx="370" cy="392" r="56" fill="#10B981" stroke="#0B1220" stroke-width="12"/>
+  <path d="M344 393 l18 18 l34 -38" fill="none" stroke="#FFFFFF" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+
+</svg>

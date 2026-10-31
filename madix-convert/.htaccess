@@ -1,0 +1,48 @@
+# MADIX Convert — إعدادات Apache
+# Py | Sohaib
+
+Options -Indexes
+DirectoryIndex index.php
+
+# منع الوصول لمجلدات الكود والبيانات
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(app|data)(/|$) - [F,L]
+</IfModule>
+
+<FilesMatch "\.(sqlite|sqlite-wal|sqlite-shm|log|old|md)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# رفع صور الكشوفات
+<IfModule mod_php.c>
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 600
+</IfModule>
+<IfModule mod_php7.c>
+  php_value upload_max_filesize 10M
+  php_value post_max_size 12M
+  php_value max_execution_time 600
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType application/manifest+json .webmanifest
+  AddType application/javascript .js
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "sw\.js$">
+    Header set Cache-Control "no-cache"
+    Header set Service-Worker-Allowed "./"
+  </FilesMatch>
+  <FilesMatch "\.(css|js|png|svg)$">
+    Header set X-Content-Type-Options "nosniff"
+  </FilesMatch>
+</IfModule>
