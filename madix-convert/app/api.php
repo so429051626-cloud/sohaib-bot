@@ -101,7 +101,8 @@ function app_public_info(): array
         }
     }
     $models = array();
-    foreach (ai_models_active() as $m) {
+    $list = ai_models_usable();
+    foreach ($list as $m) {
         $models[] = array(
             'id' => (string)$m['model_id'],
             'label' => (string)$m['label'],
@@ -163,6 +164,32 @@ function validate_phone(string $phone): string
     return $p;
 }
 
+/** اسم المستخدم: 3-30 حرف (عربي أو إنجليزي)، أرقام، _ . - بدون مسافات */
+function validate_username(string $u): string
+{
+    $u = trim(to_latin_digits($u));
+    if (str_len($u) < 3 || str_len($u) > 30) {
+        throw new ApiError('اسم المستخدم لازم يكون بين 3 و 30 حرف');
+    }
+    if (!preg_match('/^[\p{L}\p{N}_.\-]+$/u', $u)) {
+        throw new ApiError('اسم المستخدم بدون مسافات أو رموز (مسموح _ . -)');
+    }
+    return $u;
+}
+
+function username_taken(string $u, int $exceptId = 0): bool
+{
+    return (bool)q_one('SELECT id FROM users WHERE username = ? COLLATE NOCASE AND id != ?', array($u, $exceptId));
+}
+
+function validate_confirm(): void
+{
+    $in = input();
+    if (array_key_exists('password_confirm', $in) && (string)$in['password_confirm'] !== (string)($in['password'] ?? '')) {
+        throw new ApiError('تأكيد كلمة المرور غير مطابق');
+    }
+}
+
 function validate_name(string $name): string
 {
     $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
@@ -181,29 +208,36 @@ function api_setup(): array
     }
     rate_check('setup:' . client_ip(), 10, 3600, 'محاولات كثيرة، استنى شوي');
     rate_hit('setup:' . client_ip());
-    $name = validate_name(in_str('name', 80));
+    $username = validate_username(in_str('username', 60));
     $phone = validate_phone(in_str('phone', 30));
     $pass = (string)(input()['password'] ?? '');
     validate_password($pass);
+    validate_confirm();
+    $name = in_str('name', 80) !== '' ? validate_name(in_str('name', 80)) : $username;
 
     db()->beginTransaction();
     try {
         $existing = q_one('SELECT * FROM users WHERE phone = ?', array($phone));
+        if (username_taken($username, $existing ? (int)$existing['id'] : 0)) {
+            throw new ApiError('اسم المستخدم مستخدم مسبقاً', 409);
+        }
         if ($existing) {
-            q("UPDATE users SET role = 'admin', name = ?, password_hash = ?, is_blocked = 0 WHERE id = ?", array($name, password_hash($pass, PASSWORD_DEFAULT), (int)$existing['id']));
+            q("UPDATE users SET role = 'admin', name = ?, username = ?, password_hash = ?, is_blocked = 0 WHERE id = ?", array($name, $username, password_hash($pass, PASSWORD_DEFAULT), (int)$existing['id']));
             $uid = (int)$existing['id'];
         } else {
-            q("INSERT INTO users (name, phone, password_hash, role, pages, created_at) VALUES (?, ?, ?, 'admin', 0, ?)", array($name, $phone, password_hash($pass, PASSWORD_DEFAULT), now_utc()));
+            q("INSERT INTO users (name, username, phone, password_hash, role, pages, created_at) VALUES (?, ?, ?, ?, 'admin', 0, ?)", array($name, $username, $phone, password_hash($pass, PASSWORD_DEFAULT), now_utc()));
             $uid = (int)db()->lastInsertId();
         }
         db()->commit();
     } catch (Throwable $e) {
-        db()->rollBack();
+        if (db()->inTransaction()) {
+            db()->rollBack();
+        }
         throw $e;
     }
     $u = q_one('SELECT * FROM users WHERE id = ?', array($uid));
     login_user($u);
-    audit('إعداد النظام', 'إنشاء حساب المدير: ' . $phone, $uid);
+    audit('إعداد النظام', 'إنشاء حساب المدير: ' . $username, $uid);
     return array('user' => public_user($u), 'csrf' => csrf_token());
 }
 
@@ -214,17 +248,22 @@ function api_register(): array
     }
     $ipKey = 'register:' . client_ip();
     rate_check($ipKey, 6, 3600, 'سجلت حسابات كثيرة من نفس الجهاز، حاول بعد ساعة');
-    $name = validate_name(in_str('name', 80));
+    $username = validate_username(in_str('username', 60));
     $phone = validate_phone(in_str('phone', 30));
     $pass = (string)(input()['password'] ?? '');
     validate_password($pass);
+    validate_confirm();
+    $name = in_str('name', 80) !== '' ? validate_name(in_str('name', 80)) : $username;
+    if (username_taken($username)) {
+        throw new ApiError('اسم المستخدم مستخدم مسبقاً، اختار اسم ثاني', 409);
+    }
     if (q_one('SELECT id FROM users WHERE phone = ?', array($phone))) {
         throw new ApiError('رقم الجوال مسجل مسبقاً — سجّل دخول بدلاً من ذلك', 409);
     }
     $free = max(0, min(1000, (int)setting('signup_pages', '2')));
     db()->beginTransaction();
     try {
-        q('INSERT INTO users (name, phone, password_hash, role, pages, created_at) VALUES (?, ?, ?, \'user\', ?, ?)', array($name, $phone, password_hash($pass, PASSWORD_DEFAULT), $free, now_utc()));
+        q('INSERT INTO users (name, username, phone, password_hash, role, pages, created_at) VALUES (?, ?, ?, ?, \'user\', ?, ?)', array($name, $username, $phone, password_hash($pass, PASSWORD_DEFAULT), $free, now_utc()));
         $uid = (int)db()->lastInsertId();
         if ($free > 0) {
             q('INSERT INTO ledger (user_id, delta, balance_after, kind, ref, note, created_at) VALUES (?, ?, ?, \'signup\', \'\', ?, ?)', array($uid, $free, $free, 'هدية التسجيل', now_utc()));
@@ -236,23 +275,29 @@ function api_register(): array
     }
     rate_hit($ipKey);
     $u = q_one('SELECT * FROM users WHERE id = ?', array($uid));
-    audit('تسجيل حساب', $phone, $uid);
+    audit('تسجيل حساب', $username . ' / ' . $phone, $uid);
     return auth_response($u);
 }
 
 function api_login(): array
 {
-    $phone = normalize_phone(in_str('phone', 30));
+    $login = trim(to_latin_digits(in_str('username', 60) !== '' ? in_str('username', 60) : in_str('phone', 30)));
     $pass = (string)(input()['password'] ?? '');
     $ipKey = 'login:' . client_ip();
-    $phKey = 'loginp:' . $phone;
+    $phKey = 'loginp:' . (function_exists('mb_strtolower') ? mb_strtolower($login, 'UTF-8') : strtolower($login));
     rate_check($ipKey, 15, 900, 'محاولات دخول كثيرة، استنى 15 دقيقة');
-    rate_check($phKey, 6, 900, 'محاولات دخول كثيرة على هذا الرقم، استنى 15 دقيقة');
-    $u = $phone !== '' ? q_one('SELECT * FROM users WHERE phone = ?', array($phone)) : null;
+    rate_check($phKey, 6, 900, 'محاولات دخول كثيرة على هذا الحساب، استنى 15 دقيقة');
+    $u = null;
+    if ($login !== '') {
+        $u = q_one('SELECT * FROM users WHERE username = ? COLLATE NOCASE', array($login));
+        if (!$u && preg_match('/^[\d+\s\-]{7,}$/', $login)) {
+            $u = q_one('SELECT * FROM users WHERE phone = ?', array(normalize_phone($login)));
+        }
+    }
     if (!$u || !password_verify($pass, (string)$u['password_hash'])) {
         rate_hit($ipKey);
         rate_hit($phKey);
-        throw new ApiError('رقم الجوال أو كلمة السر غير صحيحة', 401);
+        throw new ApiError('اسم المستخدم أو كلمة المرور غير صحيحة', 401);
     }
     if ((int)$u['is_blocked'] === 1) {
         throw new ApiError('الحساب موقوف، تواصل مع الإدارة', 403);
@@ -617,12 +662,12 @@ function adm_users(): array
     $where = '';
     $params = array();
     if ($search !== '') {
-        $where = 'WHERE name LIKE ? OR phone LIKE ?';
+        $where = 'WHERE name LIKE ? OR phone LIKE ? OR username LIKE ?';
         $like = '%' . str_replace(array('%', '_'), array('', ''), to_latin_digits($search)) . '%';
-        $params = array($like, $like);
+        $params = array($like, $like, $like);
     }
     $total = (int)q_val("SELECT COUNT(*) FROM users $where", $params);
-    $items = q("SELECT id, name, phone, role, pages, pages_used, is_blocked, note, created_at, last_login_at FROM users $where ORDER BY id DESC LIMIT $per OFFSET " . (($page - 1) * $per), $params)->fetchAll();
+    $items = q("SELECT id, name, username, phone, role, pages, pages_used, is_blocked, note, created_at, last_login_at FROM users $where ORDER BY id DESC LIMIT $per OFFSET " . (($page - 1) * $per), $params)->fetchAll();
     return array('items' => $items, 'total' => $total, 'page' => $page, 'per' => $per);
 }
 
@@ -875,6 +920,10 @@ function adm_model_save(): array
     if (!in_array($effort, array('', 'low', 'medium', 'high', 'xhigh', 'max'), true)) {
         $effort = 'medium';
     }
+    $provider = in_str('provider', 20);
+    if (!isset(AI_PROVIDERS[$provider])) {
+        $provider = strpos($modelId, 'gemini') === 0 ? 'google' : 'anthropic';
+    }
     $fields = array(
         $modelId,
         $label,
@@ -883,7 +932,7 @@ function adm_model_save(): array
         max(0, in_float('price_out')),
         $effort,
         max(1000, min(64000, in_int('max_tokens', 16000))),
-        in_bool('use_fallbacks') ? 1 : 0,
+        ($provider === 'anthropic' && in_bool('use_fallbacks')) ? 1 : 0,
         max(1, min(100, in_int('page_cost', 1))),
         in_bool('is_active') ? 1 : 0,
         in_int('sort', 0),
@@ -896,10 +945,11 @@ function adm_model_save(): array
     try {
         if ($id > 0) {
             $fields[] = $id;
-            q('UPDATE ai_models SET model_id = ?, label = ?, description = ?, price_in = ?, price_out = ?, effort = ?, max_tokens = ?, use_fallbacks = ?, page_cost = ?, is_active = ?, sort = ? WHERE id = ?', $fields);
+            q('UPDATE ai_models SET model_id = ?, label = ?, description = ?, price_in = ?, price_out = ?, effort = ?, max_tokens = ?, use_fallbacks = ?, page_cost = ?, is_active = ?, sort = ?, provider = ? WHERE id = ?', array_merge(array_slice($fields, 0, 11), array($provider, $id)));
         } else {
+            $fields[] = $provider;
             $fields[] = now_utc();
-            q('INSERT INTO ai_models (model_id, label, description, price_in, price_out, effort, max_tokens, use_fallbacks, page_cost, is_active, sort, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', $fields);
+            q('INSERT INTO ai_models (model_id, label, description, price_in, price_out, effort, max_tokens, use_fallbacks, page_cost, is_active, sort, provider, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', $fields);
             $id = (int)db()->lastInsertId();
         }
         if (in_bool('is_default')) {
@@ -945,9 +995,10 @@ function adm_model_delete(): array
 
 function adm_keys(): array
 {
-    $items = q('SELECT id, label, key_hint, is_active, priority, ok_count, fail_count, last_used_at, last_error, last_error_at, created_at FROM api_keys ORDER BY priority ASC, id ASC')->fetchAll();
+    $items = q('SELECT id, label, key_hint, provider, is_active, priority, ok_count, fail_count, last_used_at, last_error, last_error_at, created_at FROM api_keys ORDER BY provider ASC, priority ASC, id ASC')->fetchAll();
     $env = getenv('ANTHROPIC_API_KEY');
-    return array('items' => $items, 'env_key' => $env !== false && trim($env) !== '');
+    $genv = getenv('GEMINI_API_KEY');
+    return array('items' => $items, 'env_key' => ($env !== false && trim($env) !== '') || ($genv !== false && trim($genv) !== ''));
 }
 
 function adm_key_save(): array
@@ -964,13 +1015,16 @@ function adm_key_save(): array
         }
         if ($key !== '') {
             validate_api_key($key);
-            q('UPDATE api_keys SET key_enc = ?, key_hint = ?, last_error = \'\', fail_count = 0 WHERE id = ?', array(encrypt_secret($key), key_hint($key), $id));
+            q('UPDATE api_keys SET key_enc = ?, key_hint = ?, provider = ?, last_error = \'\', fail_count = 0 WHERE id = ?', array(encrypt_secret($key), key_hint($key), detect_key_provider($key, in_str('provider', 20)), $id));
+        } elseif (isset(AI_PROVIDERS[in_str('provider', 20)])) {
+            q('UPDATE api_keys SET provider = ? WHERE id = ?', array(in_str('provider', 20), $id));
         }
         q('UPDATE api_keys SET label = ?, is_active = ?, priority = ? WHERE id = ?', array($label, $active, $priority, $id));
         audit('تعديل مفتاح API', $label);
     } else {
         validate_api_key($key);
-        q('INSERT INTO api_keys (label, key_enc, key_hint, is_active, priority, created_at) VALUES (?, ?, ?, ?, ?, ?)', array($label === '' ? 'مفتاح' : $label, encrypt_secret($key), key_hint($key), $active, $priority, now_utc()));
+        $prov = detect_key_provider($key, in_str('provider', 20));
+        q('INSERT INTO api_keys (label, key_enc, key_hint, provider, is_active, priority, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', array($label === '' ? AI_PROVIDERS[$prov] : $label, encrypt_secret($key), key_hint($key), $prov, $active, $priority, now_utc()));
         audit('إضافة مفتاح API', $label);
     }
     return adm_keys();
@@ -979,7 +1033,7 @@ function adm_key_save(): array
 function validate_api_key(string $key): void
 {
     if (strlen($key) < 20 || strlen($key) > 300 || preg_match('/\s/', $key)) {
-        throw new ApiError('المفتاح غير صحيح — انسخه كامل من console.anthropic.com');
+        throw new ApiError('المفتاح غير صحيح — انسخه كامل بدون مسافات');
     }
 }
 
@@ -1001,24 +1055,35 @@ function adm_ai_test(): array
     @set_time_limit(120);
     $keyId = in_int('key_id', -1);
     $modelId = in_str('model_id', 100);
-    if ($modelId === '') {
-        $m = ai_model_for('');
-        $modelId = $m ? (string)$m['model_id'] : 'claude-opus-5-5';
+    $provider = '';
+    $raw = '';
+    if ($keyId > 0) {
+        $row = q_one('SELECT key_enc, provider FROM api_keys WHERE id = ?', array($keyId));
+        $raw = $row ? decrypt_secret((string)$row['key_enc']) : '';
+        $provider = $row ? (string)$row['provider'] : '';
     }
-    $raw = trim((string)(input()['key'] ?? ''));
-    if ($raw === '') {
-        if ($keyId > 0) {
-            $row = q_one('SELECT key_enc FROM api_keys WHERE id = ?', array($keyId));
-            $raw = $row ? decrypt_secret((string)$row['key_enc']) : '';
-        } else {
-            $keys = ai_keys_active();
-            $raw = $keys ? $keys[0]['key'] : '';
+    if ($modelId !== '') {
+        $mrow = q_one('SELECT * FROM ai_models WHERE model_id = ?', array($modelId));
+        $mp = $mrow ? model_provider($mrow) : (strpos($modelId, 'gemini') === 0 ? 'google' : 'anthropic');
+        if ($provider === '') {
+            $provider = $mp;
         }
     }
-    if ($raw === '') {
-        throw new ApiError('أضف مفتاح API أولاً');
+    if ($provider === '') {
+        $provider = 'anthropic';
     }
-    $r = ai_test($raw, $modelId);
+    if ($modelId === '' || ($keyId > 0 && isset($mp) && $mp !== $provider)) {
+        $m = q_one('SELECT model_id FROM ai_models WHERE provider = ? ORDER BY is_active DESC, is_default DESC, sort ASC, id ASC LIMIT 1', array($provider));
+        $modelId = $m ? (string)$m['model_id'] : ($provider === 'google' ? 'gemini-flash-latest' : 'claude-opus-5-5');
+    }
+    if ($raw === '') {
+        $keys = ai_keys_active($provider);
+        $raw = $keys ? $keys[0]['key'] : '';
+    }
+    if ($raw === '') {
+        throw new ApiError('أضف مفتاح ' . (AI_PROVIDERS[$provider] ?? '') . ' أولاً');
+    }
+    $r = ai_test($raw, $modelId, $provider);
     if ($keyId > 0) {
         ai_key_mark($keyId, $r['ok'], $r['ok'] ? '' : $r['message']);
         if ($r['ok']) {

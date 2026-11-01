@@ -53,7 +53,7 @@ const cap = {
     CapacitorHttp: { enabled: true },
     CapacitorCookies: { enabled: true },
     SplashScreen: { launchShowDuration: 900, launchAutoHide: true, launchFadeOutDuration: 300, backgroundColor: '#0b1220', androidScaleType: 'CENTER_CROP', showSpinner: false },
-    SystemBars: { insetsHandling: 'css' }
+    SystemBars: { insetsHandling: 'native' }
   }
 };
 fs.writeFileSync(path.join(here, 'capacitor.config.json'), JSON.stringify(cap, null, 2) + '\n');

@@ -13,31 +13,73 @@ if (!defined('MADIX')) {
 
 const COLUMN_KINDS = array('serial', 'name', 'national_id', 'phone', 'number', 'date', 'text');
 
+const AI_PROVIDERS = array('anthropic' => 'Claude', 'google' => 'Gemini');
+
 function ai_models_active(): array
 {
     return q('SELECT * FROM ai_models WHERE is_active = 1 ORDER BY is_default DESC, sort ASC, id ASC')->fetchAll();
 }
 
-function ai_model_for(string $modelId): ?array
+/** النماذج المفعّلة اللي إلها مفتاح API جاهز */
+function ai_models_usable(): array
 {
-    if ($modelId !== '') {
-        $m = q_one('SELECT * FROM ai_models WHERE model_id = ? AND is_active = 1', array($modelId));
-        if ($m) {
-            return $m;
+    $out = array();
+    $has = array();
+    foreach (ai_models_active() as $m) {
+        $p = model_provider($m);
+        if (!isset($has[$p])) {
+            $has[$p] = ai_mock_enabled() || count(ai_keys_active($p)) > 0;
+        }
+        if ($has[$p]) {
+            $out[] = $m;
         }
     }
-    $all = ai_models_active();
-    return $all ? $all[0] : null;
+    return $out;
 }
 
-function ai_keys_active(): array
+function model_provider(array $m): string
+{
+    $p = isset($m['provider']) ? (string)$m['provider'] : 'anthropic';
+    return isset(AI_PROVIDERS[$p]) ? $p : 'anthropic';
+}
+
+function ai_model_for(string $modelId): ?array
+{
+    $usable = ai_models_usable();
+    if ($modelId !== '') {
+        foreach ($usable as $m) {
+            if ($m['model_id'] === $modelId) {
+                return $m;
+            }
+        }
+    }
+    return $usable ? $usable[0] : null;
+}
+
+/** مزوّد المفتاح من شكله: Gemini يبدأ بـ AIza و Claude يبدأ بـ sk-ant- */
+function detect_key_provider(string $key, string $fallback = 'anthropic'): string
+{
+    if (strpos($key, 'AIza') === 0) {
+        return 'google';
+    }
+    if (strpos($key, 'sk-ant-') === 0) {
+        return 'anthropic';
+    }
+    return isset(AI_PROVIDERS[$fallback]) ? $fallback : 'anthropic';
+}
+
+function ai_keys_active(string $provider = 'anthropic'): array
 {
     $keys = array();
-    $env = getenv('ANTHROPIC_API_KEY');
-    if ($env !== false && trim($env) !== '') {
-        $keys[] = array('id' => 0, 'key' => trim($env), 'label' => 'ENV');
+    $envNames = $provider === 'google' ? array('GEMINI_API_KEY', 'GOOGLE_API_KEY') : array('ANTHROPIC_API_KEY');
+    foreach ($envNames as $en) {
+        $env = getenv($en);
+        if ($env !== false && trim($env) !== '') {
+            $keys[] = array('id' => 0, 'key' => trim($env), 'label' => 'ENV');
+            break;
+        }
     }
-    foreach (q('SELECT * FROM api_keys WHERE is_active = 1 ORDER BY priority ASC, id ASC')->fetchAll() as $r) {
+    foreach (q('SELECT * FROM api_keys WHERE is_active = 1 AND provider = ? ORDER BY priority ASC, id ASC', array($provider))->fetchAll() as $r) {
         $k = decrypt_secret((string)$r['key_enc']);
         if ($k !== '') {
             $keys[] = array('id' => (int)$r['id'], 'key' => $k, 'label' => (string)$r['label']);
@@ -57,7 +99,7 @@ function ai_ready(): bool
     if (ai_mock_enabled()) {
         return true;
     }
-    return count(ai_keys_active()) > 0 && ai_model_for('') !== null;
+    return ai_model_for('') !== null;
 }
 
 function ai_schema(): array
@@ -144,6 +186,9 @@ function ai_extract(string $imgBytes, string $mime, int $w, int $h, array $hintC
         $hint = "Columns already found on earlier pages of this same list (use them if this page continues the table):\n" . implode("\n", $parts) . "\n\n";
     }
     $userText = "Image size: {$w}x{$h} pixels.\n\n" . $hint . 'Transcribe this page.';
+    if (model_provider($model) === 'google') {
+        return gemini_extract($imgBytes, $mime, $w, $h, $userText, $model, $started);
+    }
 
     $body = array(
         'model' => (string)$model['model_id'],
@@ -222,7 +267,7 @@ function ai_call(array $body, bool $useFallbacks): array
     if (!function_exists('curl_init')) {
         throw new ApiError('امتداد cURL غير مفعّل على السيرفر', 500);
     }
-    $keys = ai_keys_active();
+    $keys = ai_keys_active('anthropic');
     if (!$keys) {
         throw new ApiError('الخدمة غير مفعّلة بعد — المدير لازم يضيف مفتاح API من لوحة الإدارة', 503);
     }
@@ -466,8 +511,11 @@ function ai_mock_data(int $w, int $h, array $hintColumns): array
 }
 
 /** اختبار سريع لمفتاح ونموذج (للوحة الإدارة) */
-function ai_test(string $apiKey, string $modelId): array
+function ai_test(string $apiKey, string $modelId, string $provider = 'anthropic'): array
 {
+    if ($provider === 'google') {
+        return gemini_test($apiKey, $modelId);
+    }
     $payload = array(
         'model' => $modelId,
         'max_tokens' => 64,
@@ -494,6 +542,221 @@ function ai_test(string $apiKey, string $modelId): array
         $hint = 'المفتاح غير صحيح. ';
     } elseif ($r['status'] === 404) {
         $hint = 'اسم النموذج غير موجود أو غير متاح لحسابك. ';
+    } elseif ($r['status'] === 429) {
+        $hint = 'تجاوزت حد الطلبات. ';
+    }
+    return array('ok' => false, 'message' => $hint . 'رد الخدمة (' . $r['status'] . '): ' . str_cut($msg, 300), 'ms' => $ms);
+}
+
+// ================================================================
+// Google Gemini
+// ================================================================
+
+function gemini_url(string $modelId): string
+{
+    $base = getenv('MADIX_GEMINI_URL');
+    $base = ($base !== false && $base !== '') ? rtrim($base, '/') : 'https://generativelanguage.googleapis.com/v1beta';
+    return $base . '/models/' . rawurlencode($modelId) . ':generateContent';
+}
+
+/** نفس شكل الجدول بصيغة Gemini (OpenAPI) */
+function gemini_schema(): array
+{
+    return array(
+        'type' => 'OBJECT',
+        'properties' => array(
+            'is_table' => array('type' => 'BOOLEAN'),
+            'title' => array('type' => 'STRING'),
+            'columns' => array('type' => 'ARRAY', 'items' => array(
+                'type' => 'OBJECT',
+                'properties' => array(
+                    'label' => array('type' => 'STRING'),
+                    'kind' => array('type' => 'STRING', 'enum' => COLUMN_KINDS),
+                ),
+                'required' => array('label', 'kind'),
+            )),
+            'rows' => array('type' => 'ARRAY', 'items' => array(
+                'type' => 'OBJECT',
+                'properties' => array(
+                    'cells' => array('type' => 'ARRAY', 'items' => array('type' => 'STRING')),
+                    'unclear' => array('type' => 'ARRAY', 'items' => array('type' => 'INTEGER')),
+                    'y_top' => array('type' => 'INTEGER'),
+                    'y_bottom' => array('type' => 'INTEGER'),
+                ),
+                'required' => array('cells', 'unclear', 'y_top', 'y_bottom'),
+            )),
+            'notes' => array('type' => 'STRING'),
+        ),
+        'required' => array('is_table', 'title', 'columns', 'rows', 'notes'),
+        'propertyOrdering' => array('is_table', 'title', 'columns', 'rows', 'notes'),
+    );
+}
+
+function gemini_extract(string $imgBytes, string $mime, int $w, int $h, string $userText, array $model, float $started): array
+{
+    $body = array(
+        'systemInstruction' => array('parts' => array(array('text' => ai_system_prompt()))),
+        'contents' => array(array(
+            'role' => 'user',
+            'parts' => array(
+                array('inlineData' => array('mimeType' => $mime, 'data' => base64_encode($imgBytes))),
+                array('text' => $userText),
+            ),
+        )),
+        'generationConfig' => array(
+            'responseMimeType' => 'application/json',
+            'responseSchema' => gemini_schema(),
+            'maxOutputTokens' => max(2000, min(64000, (int)$model['max_tokens'])),
+        ),
+    );
+    $effort = (string)$model['effort'];
+    if (in_array($effort, array('low', 'medium', 'high'), true)) {
+        $body['generationConfig']['thinkingConfig'] = array('thinkingLevel' => $effort === 'medium' ? 'low' : $effort);
+    }
+    $json = gemini_call($body, (string)$model['model_id']);
+
+    if (isset($json['promptFeedback']['blockReason'])) {
+        throw new ApiError('النموذج رفض قراءة هذه الصورة. جرّب صورة ثانية أو نموذج آخر', 422);
+    }
+    $cand = isset($json['candidates'][0]) ? $json['candidates'][0] : array();
+    $finish = isset($cand['finishReason']) ? (string)$cand['finishReason'] : '';
+    $text = '';
+    foreach ((array)($cand['content']['parts'] ?? array()) as $part) {
+        if (isset($part['text']) && empty($part['thought'])) {
+            $text .= (string)$part['text'];
+        }
+    }
+    $text = trim($text);
+    if (strpos($text, '```') === 0) {
+        $text = trim(preg_replace('/^```(?:json)?\s*|\s*```$/', '', $text));
+    }
+    $data = json_decode($text, true);
+    if (!is_array($data)) {
+        if ($finish === 'MAX_TOKENS') {
+            throw new ApiError('الكشف طويل جداً على صفحة وحدة. صوّر الصفحة على جزئين أو زد حد التوكنز من لوحة الإدارة', 422);
+        }
+        if (in_array($finish, array('SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII', 'RECITATION'), true)) {
+            throw new ApiError('النموذج رفض قراءة هذه الصورة. جرّب صورة ثانية أو نموذج آخر', 422);
+        }
+        throw new ApiError('ما قدرنا نفهم رد الذكاء الاصطناعي. جرّب مرة ثانية', 502);
+    }
+    $u = isset($json['usageMetadata']) && is_array($json['usageMetadata']) ? $json['usageMetadata'] : array();
+    $in = (int)($u['promptTokenCount'] ?? 0);
+    $out = (int)($u['candidatesTokenCount'] ?? 0) + (int)($u['thoughtsTokenCount'] ?? 0);
+    $cost = ($in * (float)$model['price_in'] + $out * (float)$model['price_out']) / 1000000;
+    return array(
+        'data' => ai_clean($data, $w, $h),
+        'model' => isset($json['modelVersion']) ? (string)$json['modelVersion'] : (string)$model['model_id'],
+        'input_tokens' => $in,
+        'output_tokens' => $out,
+        'cost' => round($cost, 6),
+        'ms' => (int)((microtime(true) - $started) * 1000),
+    );
+}
+
+/** طلب Gemini مع تجربة المفاتيح بالترتيب وإعادة المحاولة */
+function gemini_call(array $body, string $modelId): array
+{
+    if (!function_exists('curl_init')) {
+        throw new ApiError('امتداد cURL غير مفعّل على السيرفر', 500);
+    }
+    $keys = ai_keys_active('google');
+    if (!$keys) {
+        throw new ApiError('الخدمة غير مفعّلة بعد — المدير لازم يضيف مفتاح API من لوحة الإدارة', 503);
+    }
+    $lastMessage = 'تعذّر الاتصال بخدمة الذكاء الاصطناعي';
+    $started = time();
+    $met = (int)ini_get('max_execution_time');
+    $budget = $met > 0 ? max(25, $met - 6) : 280;
+    foreach ($keys as $key) {
+        $payload = $body;
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            $left = $budget - (time() - $started);
+            if ($left < 15) {
+                break 2;
+            }
+            $r = http_post_json(gemini_url($modelId), $payload, array('Content-Type: application/json', 'x-goog-api-key: ' . $key['key']), min(240, $left));
+            if ($r['error'] !== '') {
+                $lastMessage = 'انقطع الاتصال بخدمة الذكاء الاصطناعي، حاول مرة ثانية';
+                ai_key_mark($key['id'], false, 'network: ' . $r['error']);
+                if ($attempt < 2) {
+                    sleep(2);
+                    continue;
+                }
+                break;
+            }
+            $status = $r['status'];
+            $json = json_decode($r['body'], true);
+            $json = is_array($json) ? $json : array();
+            $errMsg = isset($json['error']['message']) ? (string)$json['error']['message'] : '';
+            $errStatus = isset($json['error']['status']) ? (string)$json['error']['status'] : '';
+            if ($status === 200) {
+                ai_key_mark($key['id'], true, '');
+                return $json;
+            }
+            ai_key_mark($key['id'], false, $status . ' ' . $errStatus . ': ' . $errMsg);
+            if ($status === 400 && isset($payload['generationConfig']['thinkingConfig']) && stripos($errMsg, 'thinking') !== false) {
+                unset($payload['generationConfig']['thinkingConfig']);
+                $attempt--;
+                continue;
+            }
+            if (stripos($errMsg, 'API key') !== false || $status === 401 || $status === 403) {
+                $lastMessage = 'مفتاح API غير صالح أو موقوف — راجع لوحة الإدارة';
+                break;
+            }
+            if ($status === 404) {
+                throw new ApiError('النموذج المختار غير متاح (' . $modelId . '). غيّره من لوحة الإدارة', 502);
+            }
+            if ($status === 429 || $errStatus === 'RESOURCE_EXHAUSTED') {
+                $lastMessage = 'تم تجاوز حد الاستخدام لمفتاح Gemini، حاول بعد شوي';
+                if ($attempt < 2) {
+                    sleep(4);
+                    continue;
+                }
+                break;
+            }
+            if ($status >= 500) {
+                $lastMessage = 'الخدمة مضغوطة حالياً، حاول بعد شوي';
+                if ($attempt < 3) {
+                    sleep(min(8, $attempt * 3));
+                    continue;
+                }
+                break;
+            }
+            if ($status === 400 && (stripos($errMsg, 'image') !== false || stripos($errMsg, 'inline') !== false)) {
+                throw new ApiError('الصورة غير مقبولة من الخدمة. جرّب صورة أوضح أو أصغر', 422);
+            }
+            if ($status === 400 && stripos($errMsg, 'location') !== false) {
+                throw new ApiError('خدمة Gemini غير متاحة من موقع السيرفر', 502);
+            }
+            throw new ApiError('الخدمة رفضت الطلب — التفاصيل محفوظة في لوحة الإدارة (مفاتيح API)', 502);
+        }
+    }
+    throw new ApiError($lastMessage, 502);
+}
+
+function gemini_test(string $apiKey, string $modelId): array
+{
+    $started = microtime(true);
+    $r = http_post_json(gemini_url($modelId), array(
+        'contents' => array(array('role' => 'user', 'parts' => array(array('text' => 'Reply with the single word: OK')))),
+        'generationConfig' => array('maxOutputTokens' => 256),
+    ), array('Content-Type: application/json', 'x-goog-api-key: ' . $apiKey), 60);
+    $ms = (int)((microtime(true) - $started) * 1000);
+    if ($r['error'] !== '') {
+        return array('ok' => false, 'message' => 'تعذّر الاتصال: ' . $r['error'], 'ms' => $ms);
+    }
+    $json = json_decode($r['body'], true);
+    if ($r['status'] === 200) {
+        $mv = is_array($json) && isset($json['modelVersion']) ? $json['modelVersion'] : $modelId;
+        return array('ok' => true, 'message' => 'الاتصال ناجح ✓ النموذج ' . $mv . ' جاهز', 'ms' => $ms);
+    }
+    $msg = is_array($json) && isset($json['error']['message']) ? (string)$json['error']['message'] : ('HTTP ' . $r['status']);
+    $hint = '';
+    if (stripos($msg, 'API key') !== false) {
+        $hint = 'المفتاح غير صحيح. ';
+    } elseif ($r['status'] === 404) {
+        $hint = 'اسم النموذج غير موجود. ';
     } elseif ($r['status'] === 429) {
         $hint = 'تجاوزت حد الطلبات. ';
     }

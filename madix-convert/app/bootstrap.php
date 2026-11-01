@@ -556,6 +556,7 @@ function public_user(array $u): array
     return array(
         'id' => (int)$u['id'],
         'name' => (string)$u['name'],
+        'username' => (string)($u['username'] ?? ''),
         'phone' => (string)$u['phone'],
         'role' => (string)$u['role'],
         'pages' => (int)$u['pages'],

@@ -28,7 +28,7 @@
       "showSpinner": false
     },
     "SystemBars": {
-      "insetsHandling": "css"
+      "insetsHandling": "native"
     }
   }
 }

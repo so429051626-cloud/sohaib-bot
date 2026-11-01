@@ -154,9 +154,11 @@
   };
 
   // ---------- الواجهة ----------
-  N.statusBar = function (dark) {
+  // التطبيق تحت شريط الحالة وفوق أزرار التنقل؛ خلفيتهم داكنة فالأيقونات دايماً فاتحة
+  N.statusBar = function () {
     if (!StatusBar) return;
-    StatusBar.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(function () { });
+    StatusBar.setStyle({ style: 'DARK' }).catch(function () { });
+    if (StatusBar.setBackgroundColor) StatusBar.setBackgroundColor({ color: '#0b1220' }).catch(function () { });
   };
   N.hideSplash = function () { if (Splash) Splash.hide().catch(function () { }); };
   N.onBack = function (handler) { if (App) App.addListener('backButton', handler); };

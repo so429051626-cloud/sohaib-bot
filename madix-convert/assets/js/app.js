@@ -259,23 +259,27 @@
     return el('div', { class: 'input-wrap' }, ic('phone'), el('input', { class: 'input ltr', type: 'tel', name: 'phone', inputmode: 'tel', autocomplete: 'tel', placeholder: '059xxxxxxx', required: true, maxlength: '20' }));
   }
 
+  function usernameInput(ac) {
+    return el('input', { class: 'input ltr', name: 'username', autocomplete: ac || 'username', autocapitalize: 'off', spellcheck: 'false', placeholder: 'username', required: true, maxlength: '30', dir: 'ltr' });
+  }
+
   function loginForm() {
     var err = el('div', { class: 'form-error', hidden: true });
+    var user = usernameInput('username');
     var pw = K.passwordInput({ autocomplete: 'current-password' });
     var btn = el('button', { class: 'btn btn-primary btn-block btn-lg', type: 'submit' }, 'دخول');
-    var phone = phoneInput();
     var form = el('form', { class: 'stack', novalidate: true },
-      el('div', { class: 'field' }, el('label', { text: 'رقم الجوال' }), phone),
-      el('div', { class: 'field' }, el('label', { text: 'كلمة السر' }), pw.node),
+      el('div', { class: 'field' }, el('label', { text: 'اسم المستخدم' }), el('div', { class: 'input-wrap' }, ic('user'), user)),
+      el('div', { class: 'field' }, el('label', { text: 'كلمة المرور' }), pw.node),
       err, btn,
-      el('button', { class: 'btn btn-ghost btn-sm', type: 'button', on: { click: forgotPassword } }, 'نسيت كلمة السر؟'));
+      el('button', { class: 'btn btn-ghost btn-sm', type: 'button', on: { click: forgotPassword } }, 'نسيت كلمة المرور؟'));
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       err.hidden = true;
-      var ph = phone.querySelector('input').value.trim();
-      if (!ph || !pw.input.value) { err.textContent = 'اكتب رقم الجوال وكلمة السر'; err.hidden = false; return; }
+      var u = user.value.trim();
+      if (!u || !pw.input.value) { err.textContent = 'اكتب اسم المستخدم وكلمة المرور'; err.hidden = false; return; }
       K.busy(btn, true);
-      K.api.post('login', { phone: ph, password: pw.input.value }).then(function (r) {
+      K.api.post('login', { username: u, password: pw.input.value }).then(function (r) {
         S.user = r.user;
         K.toast('أهلاً ' + firstName(r.user.name) + ' 👋', 'success');
         afterLogin();
@@ -287,21 +291,33 @@
   function registerForm() {
     var app = S.app || {};
     var err = el('div', { class: 'form-error', hidden: true });
-    var name = el('input', { class: 'input', name: 'name', autocomplete: 'name', placeholder: 'الاسم الكامل', required: true, maxlength: '60' });
+    var user = usernameInput('username');
     var phone = phoneInput();
     var pw = K.passwordInput({ autocomplete: 'new-password', placeholder: '6 أحرف أو أكثر' });
+    var pw2 = K.passwordInput({ autocomplete: 'new-password', placeholder: '••••••' });
     var btn = el('button', { class: 'btn btn-primary btn-block btn-lg', type: 'submit' }, 'إنشاء الحساب');
+    function matchCheck() {
+      var bad = pw2.input.value && pw2.input.value !== pw.input.value;
+      pw2.input.classList.toggle('bad', !!bad);
+    }
+    pw.input.addEventListener('input', matchCheck);
+    pw2.input.addEventListener('input', matchCheck);
     var form = el('form', { class: 'stack', novalidate: true },
-      app.signup_pages > 0 ? el('div', { class: 'notice green' }, ic('gift'), el('div', { text: 'هدية التسجيل: ' + app.signup_pages + ' ' + K.pagesWord(app.signup_pages) + ' مجاناً للتجربة' })) : null,
-      el('div', { class: 'field' }, el('label', { text: 'الاسم' }), el('div', { class: 'input-wrap' }, ic('user'), name)),
-      el('div', { class: 'field' }, el('label', { text: 'رقم الجوال' }), phone),
-      el('div', { class: 'field' }, el('label', { text: 'كلمة السر' }), pw.node),
+      app.signup_pages > 0 ? el('div', { class: 'notice green' }, ic('gift'), el('div', { text: 'هدية التسجيل: ' + app.signup_pages + ' ' + K.pagesWord(app.signup_pages) + ' مجاناً' })) : null,
+      el('div', { class: 'field' }, el('label', { text: 'اسم المستخدم' }), el('div', { class: 'input-wrap' }, ic('user'), user)),
+      el('div', { class: 'field' }, el('label', { text: 'رقم الهاتف' }), phone),
+      el('div', { class: 'field' }, el('label', { text: 'كلمة المرور' }), pw.node),
+      el('div', { class: 'field' }, el('label', { text: 'تأكيد كلمة المرور' }), pw2.node),
       err, btn);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       err.hidden = true;
+      var u = user.value.trim();
+      var ph = phone.querySelector('input').value.trim();
+      var msg = !u ? 'اكتب اسم المستخدم' : /\s/.test(u) ? 'اسم المستخدم بدون مسافات' : !ph ? 'اكتب رقم الهاتف' : pw.input.value.length < 6 ? 'كلمة المرور لازم تكون 6 أحرف أو أكثر' : pw.input.value !== pw2.input.value ? 'تأكيد كلمة المرور غير مطابق' : '';
+      if (msg) { err.textContent = msg; err.hidden = false; return; }
       K.busy(btn, true);
-      K.api.post('register', { name: name.value, phone: phone.querySelector('input').value, password: pw.input.value }).then(function (r) {
+      K.api.post('register', { username: u, phone: ph, password: pw.input.value, password_confirm: pw2.input.value }).then(function (r) {
         S.user = r.user;
         K.toast('تم إنشاء حسابك ✓ أهلاً فيك', 'success');
         afterLogin();
@@ -1793,7 +1809,7 @@
     var body = el('div', { class: 'stack lg' },
       el('div', { class: 'card profile-card' },
         el('div', { class: 'avatar', text: (u.name || '?').trim().charAt(0) }),
-        el('div', { class: 'grow' }, el('b', { style: { 'font-size': '17px' }, text: u.name }), el('div', { class: 'muted small ltr', style: { 'text-align': 'right' }, text: u.phone }), el('div', { class: 'tiny muted', text: 'عضو من ' + K.fmtDay(u.created_at) + ' • استخدمت ' + K.num(u.pages_used) + ' صفحة' })),
+        el('div', { class: 'grow' }, el('b', { style: { 'font-size': '17px' }, text: u.name }), el('div', { class: 'muted small ltr', style: { 'text-align': 'right' }, text: (u.username ? '@' + u.username + '  •  ' : '') + u.phone }), el('div', { class: 'tiny muted', text: 'عضو من ' + K.fmtDay(u.created_at) + ' • استخدمت ' + K.num(u.pages_used) + ' صفحة' })),
         el('button', { class: 'btn btn-icon btn-ghost', type: 'button', 'aria-label': 'تعديل الاسم', on: { click: editName } }, ic('edit'))),
       el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('sun'), 'المظهر'), seg),
       el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('shield'), 'الخصوصية'),

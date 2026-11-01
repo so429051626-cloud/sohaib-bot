@@ -9,13 +9,22 @@
   var root = document.getElementById('app');
   var S = { app: null, user: null, setup: false, settings: null };
   var KNOWN_MODELS = [
-    ['claude-opus-5-5', 'Claude Opus 5.5 — الأدق', 4, 20],
-    ['claude-sonnet-5-5', 'Claude Sonnet 5.5 — متوازن', 2, 10],
-    ['claude-haiku-5-5', 'Claude Haiku 5.5 — اقتصادي', 0.1, 0.5],
-    ['claude-fable-5-1', 'Claude Fable 5.1 — الأقوى والأغلى', 10, 50],
-    ['claude-opus-5', 'Claude Opus 5', 5, 25],
-    ['claude-sonnet-5', 'Claude Sonnet 5', 2, 10]
+    ['gemini-flash-latest', 'Gemini Flash — سريع', 0, 0, 'google'],
+    ['gemini-3.6-flash', 'Gemini 3.6 Flash', 0, 0, 'google'],
+    ['gemini-flash-lite-latest', 'Gemini Flash-Lite — اقتصادي', 0, 0, 'google'],
+    ['gemini-pro-latest', 'Gemini Pro — الأدق', 0, 0, 'google'],
+    ['claude-opus-5-5', 'Claude Opus 5.5 — الأدق', 4, 20, 'anthropic'],
+    ['claude-sonnet-5-5', 'Claude Sonnet 5.5 — متوازن', 2, 10, 'anthropic'],
+    ['claude-haiku-5-5', 'Claude Haiku 5.5 — اقتصادي', 0.1, 0.5, 'anthropic'],
+    ['claude-fable-5-1', 'Claude Fable 5.1 — الأقوى والأغلى', 10, 50, 'anthropic']
   ];
+  var PROVIDERS = [['google', 'Gemini (Google)'], ['anthropic', 'Claude (Anthropic)']];
+  function provName(p) { return p === 'google' ? 'Gemini' : 'Claude'; }
+  function guessProvider(id, key) {
+    if (key && /^AIza/.test(key)) return 'google';
+    if (key && /^sk-ant-/.test(key)) return 'anthropic';
+    return /^gemini/i.test(id || '') ? 'google' : 'anthropic';
+  }
   var EFFORTS = [['low', 'منخفض (أسرع وأرخص)'], ['medium', 'متوسط (منصوح)'], ['high', 'عالي (أدق للخط الصعب)'], ['xhigh', 'عالي جداً'], ['max', 'أقصى']];
   var NAV = [
     ['overview', 'نظرة عامة', 'chart'],
@@ -87,17 +96,19 @@
 
   function viewSetup() {
     var err = el('div', { class: 'form-error', hidden: true });
-    var name = el('input', { class: 'input', placeholder: 'اسم المدير', required: true });
+    var uname = el('input', { class: 'input ltr', placeholder: 'admin', required: true, autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false' });
     var phone = el('input', { class: 'input ltr', type: 'tel', inputmode: 'tel', placeholder: '059xxxxxxx', required: true });
     var pw = K.passwordInput({ autocomplete: 'new-password', placeholder: '6 أحرف أو أكثر' });
+    var pw2 = K.passwordInput({ autocomplete: 'new-password', placeholder: '••••••' });
     var btn = el('button', { class: 'btn btn-primary btn-block btn-lg', type: 'submit' }, ic('check'), 'إنشاء حساب المدير');
     var form = el('form', { class: 'stack' },
-      field('الاسم', name), field('رقم الجوال (للدخول)', phone), field('كلمة السر', pw.node), err, btn);
+      field('اسم المستخدم', uname), field('رقم الهاتف', phone), field('كلمة المرور', pw.node), field('تأكيد كلمة المرور', pw2.node), err, btn);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       err.hidden = true;
       K.busy(btn, true);
-      K.api.post('setup', { name: name.value, phone: phone.value, password: pw.input.value }).then(function (r) {
+      if (pw.input.value !== pw2.input.value) { err.textContent = 'تأكيد كلمة المرور غير مطابق'; err.hidden = false; K.busy(btn, false); return; }
+      K.api.post('setup', { username: uname.value.trim(), phone: phone.value, password: pw.input.value, password_confirm: pw2.input.value }).then(function (r) {
         S.user = r.user; S.setup = false;
         K.toast('تم إعداد النظام ✓ الخطوة التالية: أضف مفتاح API', 'success', 5000);
         K.go('/keys', true);
@@ -109,15 +120,15 @@
 
   function viewLogin(msg) {
     var err = el('div', { class: 'form-error', hidden: !msg, text: msg || '' });
-    var phone = el('input', { class: 'input ltr', type: 'tel', inputmode: 'tel', placeholder: '059xxxxxxx', autocomplete: 'username' });
+    var phone = el('input', { class: 'input ltr', placeholder: 'username', autocomplete: 'username', autocapitalize: 'off', spellcheck: 'false' });
     var pw = K.passwordInput({});
     var btn = el('button', { class: 'btn btn-primary btn-block btn-lg', type: 'submit' }, ic('lock'), 'دخول للوحة الإدارة');
-    var form = el('form', { class: 'stack' }, field('رقم الجوال', phone), field('كلمة السر', pw.node), err, btn, el('a', { class: 'btn btn-ghost btn-sm', href: 'index.php' }, 'الرجوع للتطبيق'));
+    var form = el('form', { class: 'stack' }, field('اسم المستخدم أو رقم الهاتف', phone), field('كلمة المرور', pw.node), err, btn);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
       err.hidden = true;
       K.busy(btn, true);
-      K.api.post('login', { phone: phone.value, password: pw.input.value }).then(function (r) {
+      K.api.post('login', { username: phone.value.trim(), password: pw.input.value }).then(function (r) {
         if (r.user.role !== 'admin') { err.textContent = 'هذا الحساب مش حساب مدير'; err.hidden = false; return K.api.post('logout', {}); }
         S.user = r.user;
         K.go('/overview', true);
@@ -180,6 +191,7 @@
       r.items.forEach(function (m) {
         grid.appendChild(el('div', { class: 'card model-card' },
           el('div', { class: 'row' }, el('div', { class: 'grow' }, el('b', { style: { 'font-size': '16px' }, text: m.label }), el('div', { class: 'mid', text: m.model_id })),
+            el('span', { class: 'badge ' + (m.provider === 'google' ? 'blue' : 'violet'), text: provName(m.provider) }),
             Number(m.is_default) ? el('span', { class: 'badge green' }, ic('star'), 'افتراضي') : null,
             el('span', { class: 'badge ' + (Number(m.is_active) ? 'blue' : 'red'), text: Number(m.is_active) ? 'مفعّل' : 'معطّل' })),
           m.description ? el('div', { class: 'small muted', text: m.description }) : null,
@@ -187,7 +199,7 @@
             el('span', { class: 'badge' }, 'إدخال $' + money(m.price_in) + ' / إخراج $' + money(m.price_out)),
             el('span', { class: 'badge' }, 'الجهد: ' + (m.effort || 'افتراضي')),
             el('span', { class: 'badge' }, m.page_cost + ' صفحة / قراءة'),
-            Number(m.use_fallbacks) ? el('span', { class: 'badge violet' }, 'نموذج بديل عند الرفض') : null),
+            Number(m.use_fallbacks) && m.provider !== 'google' ? el('span', { class: 'badge violet' }, 'نموذج بديل عند الرفض') : null),
           el('div', { class: 'tiny muted', text: 'استُخدم ' + K.num(m.uses) + ' مرة • التكلفة ' + usd(m.cost) }),
           el('div', { class: 'row wrap' },
             el('button', { class: 'btn btn-sm', type: 'button', on: { click: function () { modelForm(m); } } }, ic('edit'), 'تعديل'),
@@ -210,7 +222,7 @@
     return K.api.post('model_save', {
       id: m.id || 0, model_id: m.model_id, label: m.label, description: m.description || '',
       price_in: m.price_in, price_out: m.price_out, effort: m.effort, max_tokens: m.max_tokens || 16000,
-      page_cost: m.page_cost || 1, use_fallbacks: !!Number(m.use_fallbacks), is_active: !!Number(m.is_active), is_default: !!Number(m.is_default), sort: m.sort || 0
+      page_cost: m.page_cost || 1, provider: m.provider || guessProvider(m.model_id), use_fallbacks: !!Number(m.use_fallbacks), is_active: !!Number(m.is_active), is_default: !!Number(m.is_default), sort: m.sort || 0
     }).then(function () { K.toast('تم الحفظ ✓', 'success'); viewModels(); }).catch(function (e) { K.toast(e.message, 'error'); throw e; });
   }
 
@@ -222,9 +234,10 @@
   }
 
   function modelForm(m) {
-    m = m || { model_id: '', label: '', description: '', price_in: '', price_out: '', effort: 'medium', max_tokens: 16000, page_cost: 1, use_fallbacks: 1, is_active: 1, is_default: 0, sort: 0 };
+    m = m || { model_id: '', label: '', description: '', price_in: '', price_out: '', effort: 'low', max_tokens: 16000, page_cost: 1, use_fallbacks: 0, is_active: 1, is_default: 0, sort: 0, provider: 'google' };
+    var prov = selectOf(PROVIDERS, m.provider || guessProvider(m.model_id));
     var dl = el('datalist', { id: 'known-models' }, KNOWN_MODELS.map(function (k) { return el('option', { value: k[0], text: k[1] }); }));
-    var mid = el('input', { class: 'input ltr', value: m.model_id, list: 'known-models', placeholder: 'claude-opus-5-5', autocomplete: 'off', spellcheck: 'false' });
+    var mid = el('input', { class: 'input ltr', value: m.model_id, list: 'known-models', placeholder: 'gemini-flash-latest', autocomplete: 'off', spellcheck: 'false' });
     var label = el('input', { class: 'input', value: m.label, placeholder: 'مثال: دقة عالية' });
     var desc = el('input', { class: 'input', value: m.description, placeholder: 'وصف قصير يظهر للمستخدم' });
     var pin = el('input', { class: 'input ltr', type: 'number', step: '0.01', min: '0', value: String(m.price_in) });
@@ -233,7 +246,10 @@
     var maxT = el('input', { class: 'input ltr', type: 'number', min: '1000', max: '64000', step: '1000', value: String(m.max_tokens || 16000) });
     var cost = el('input', { class: 'input ltr', type: 'number', min: '1', max: '100', value: String(m.page_cost || 1) });
     var sort = el('input', { class: 'input ltr', type: 'number', value: String(m.sort || 0) });
-    var fb = sw('نموذج بديل تلقائي عند الرفض', Number(m.use_fallbacks), 'إذا رفض النموذج الطلب، الخدمة بتعيده على نموذج بديل');
+    var fb = sw('نموذج بديل تلقائي عند الرفض', Number(m.use_fallbacks));
+    function syncProv() { fb.node.hidden = prov.value === 'google'; }
+    prov.addEventListener('change', syncProv);
+    syncProv();
     var act = sw('مفعّل', Number(m.is_active));
     var def = sw('النموذج الافتراضي', Number(m.is_default));
     mid.addEventListener('change', function () {
@@ -243,13 +259,18 @@
         if (!pout.value || pout.value === '0') pout.value = k[3];
         if (!label.value) label.value = k[1].split(' — ')[1] || k[1];
         if (/haiku/.test(k[0])) fb.input.checked = false;
+        prov.value = k[4];
+      } else {
+        prov.value = guessProvider(mid.value);
       }
+      syncProv();
     });
     K.sheet({
       title: m.id ? 'تعديل النموذج' : 'إضافة نموذج',
       wide: true,
       body: el('div', { class: 'form-grid' }, dl,
-        el('div', { class: 'full' }, field('اسم النموذج (Model ID)', mid, 'انسخه من وثائق Anthropic — مثل claude-opus-5-5. اختار من القائمة أو اكتب أي نموذج جديد.')),
+        field('المزوّد', prov),
+        field('اسم النموذج (Model ID)', mid),
         field('الاسم الظاهر للمستخدم', label),
         field('الوصف', desc),
         field('سعر الإدخال $ / مليون توكن', pin),
@@ -261,7 +282,7 @@
         el('div', { class: 'full card flat', style: { padding: '2px 14px' } }, fb.node, act.node, def.node)),
       actions: [{ label: 'إلغاء' }, {
         label: 'حفظ', primary: true, icon: 'check', onClick: function () {
-          return saveModel({ id: m.id, model_id: mid.value.trim(), label: label.value.trim(), description: desc.value.trim(), price_in: pin.value, price_out: pout.value, effort: effort.value, max_tokens: maxT.value, page_cost: cost.value, sort: sort.value, use_fallbacks: fb.input.checked ? 1 : 0, is_active: act.input.checked ? 1 : 0, is_default: def.input.checked ? 1 : 0 });
+          return saveModel({ id: m.id, provider: prov.value, model_id: mid.value.trim(), label: label.value.trim(), description: desc.value.trim(), price_in: pin.value, price_out: pout.value, effort: effort.value, max_tokens: maxT.value, page_cost: cost.value, sort: sort.value, use_fallbacks: fb.input.checked ? 1 : 0, is_active: act.input.checked ? 1 : 0, is_default: def.input.checked ? 1 : 0 });
         }
       }]
     });
@@ -285,6 +306,7 @@
           el('div', { class: 'row' }, el('div', { class: 'thumb', style: { width: '44px', height: '44px', 'border-radius': '13px', display: 'grid', 'place-items': 'center', background: 'var(--primary-soft)', color: 'var(--primary)', flex: 'none' } }, ic('key')),
             el('div', { class: 'grow' }, el('b', { text: k.label || 'مفتاح' }), el('div', { class: 'mono small muted ltr', style: { 'text-align': 'right' }, text: k.key_hint })),
             el('span', { class: 'badge ' + (Number(k.is_active) ? 'green' : 'red'), text: Number(k.is_active) ? 'مفعّل' : 'معطّل' }),
+            el('span', { class: 'badge ' + (k.provider === 'google' ? 'blue' : 'violet'), text: provName(k.provider) }),
             el('span', { class: 'badge', text: 'أولوية ' + k.priority })),
           el('div', { class: 'row wrap small muted' },
             el('span', {}, '✓ ' + K.num(k.ok_count) + ' ناجح'),
@@ -310,17 +332,19 @@
 
   function keyForm(k) {
     var label = el('input', { class: 'input', value: k ? k.label : '', placeholder: 'مثال: الحساب الرئيسي' });
-    var key = el('input', { class: 'input ltr mono', type: 'password', placeholder: k ? 'اتركه فاضي إذا ما بدك تغيره' : 'sk-ant-…', autocomplete: 'off', spellcheck: 'false' });
+    var key = el('input', { class: 'input ltr mono', type: 'password', placeholder: k ? 'اتركه فاضي إذا ما بدك تغيره' : 'AIza…  /  sk-ant-…', autocomplete: 'off', spellcheck: 'false' });
+    var prov = selectOf(PROVIDERS, k ? (k.provider || 'anthropic') : 'google');
+    key.addEventListener('input', function () { var v = key.value.trim(); if (/^AIza|^sk-ant-/.test(v)) prov.value = guessProvider('', v); });
     var pr = el('input', { class: 'input ltr', type: 'number', value: String(k ? k.priority : 0) });
     var act = sw('مفعّل', k ? Number(k.is_active) : 1);
     K.sheet({
       title: k ? 'تعديل المفتاح' : 'إضافة مفتاح API',
-      body: el('div', { class: 'stack' }, field('الاسم', label), field('المفتاح', key, 'بيبدأ عادةً بـ sk-ant-'), field('الأولوية', pr, 'الرقم الأصغر بينستخدم أولاً'), act.node),
+      body: el('div', { class: 'stack' }, field('المزوّد', prov), field('المفتاح', key), field('الاسم', label), field('الأولوية', pr), act.node),
       actions: [{ label: 'إلغاء' }, {
         label: 'حفظ واختبار', primary: true, icon: 'check', onClick: function () {
-          return K.api.post('key_save', { id: k ? k.id : 0, label: label.value, key: key.value.trim(), priority: pr.value, is_active: act.input.checked }).then(function (r) {
+          return K.api.post('key_save', { id: k ? k.id : 0, provider: prov.value, label: label.value, key: key.value.trim(), priority: pr.value, is_active: act.input.checked }).then(function (r) {
             K.toast('تم الحفظ ✓ — عم نختبر الاتصال…', 'success');
-            var saved = k ? k : r.items[r.items.length - 1];
+            var saved = k ? k : r.items.reduce(function (a, b) { return Number(b.id) > Number(a.id) ? b : a; }, r.items[0]);
             viewKeys();
             if (saved && (key.value.trim() || !k)) {
               K.api.post('ai_test', { key_id: saved.id }).then(function (t) { K.toast(t.result.message, t.result.ok ? 'success' : 'error', 8000); viewKeys(); }).catch(function () { });
@@ -499,6 +523,7 @@
         r.items.forEach(function (u) {
           var tr = el('tr', { style: { cursor: 'pointer' } },
             el('td', {}, el('b', { text: u.name }), u.role === 'admin' ? el('span', { class: 'badge violet', style: { 'margin-inline-start': '6px' }, text: 'مدير' }) : null, Number(u.is_blocked) ? el('span', { class: 'badge red', style: { 'margin-inline-start': '6px' }, text: 'موقوف' }) : null),
+            el('td', { class: 'ltr mono', style: { 'text-align': 'right' }, text: u.username ? '@' + u.username : '—' }),
             el('td', { class: 'ltr', style: { 'text-align': 'right' }, text: u.phone }),
             el('td', {}, el('b', { text: K.num(u.pages) })),
             el('td', { text: K.num(u.pages_used) }),
@@ -507,9 +532,9 @@
           tr.addEventListener('click', function () { userSheet(u, load); });
           tb.appendChild(tr);
         });
-        if (!r.items.length) tb.appendChild(el('tr', {}, el('td', { colspan: '6', class: 'center muted', style: { padding: '24px' }, text: 'ما في مستخدمين' })));
+        if (!r.items.length) tb.appendChild(el('tr', {}, el('td', { colspan: '7', class: 'center muted', style: { padding: '24px' }, text: 'ما في مستخدمين' })));
         table.appendChild(el('div', { class: 'small muted', style: { 'margin-bottom': '8px' }, text: 'العدد: ' + K.num(r.total) }));
-        table.appendChild(el('div', { class: 'dt-wrap' }, el('table', { class: 'dt' }, el('thead', {}, el('tr', {}, el('th', { text: 'الاسم' }), el('th', { text: 'الجوال' }), el('th', { text: 'الرصيد' }), el('th', { text: 'استخدم' }), el('th', { text: 'التسجيل' }), el('th', { text: 'آخر دخول' }))), tb)));
+        table.appendChild(el('div', { class: 'dt-wrap' }, el('table', { class: 'dt' }, el('thead', {}, el('tr', {}, el('th', { text: 'الاسم' }), el('th', { text: 'المستخدم' }), el('th', { text: 'الهاتف' }), el('th', { text: 'الرصيد' }), el('th', { text: 'استخدم' }), el('th', { text: 'التسجيل' }), el('th', { text: 'آخر دخول' }))), tb)));
         var pagesN = Math.max(1, Math.ceil(r.total / r.per));
         if (pagesN > 1) {
           table.appendChild(el('div', { class: 'pager' },
@@ -539,6 +564,7 @@
       wide: true,
       body: el('div', { class: 'stack lg' },
         el('div', { class: 'row wrap' },
+          u.username ? el('span', { class: 'badge blue ltr', text: '@' + u.username }) : null,
           el('span', { class: 'badge ltr', text: u.phone }),
           el('span', { class: 'badge green', text: 'الرصيد: ' + K.num(u.pages) }),
           el('span', { class: 'badge', text: 'استخدم: ' + K.num(u.pages_used) }),

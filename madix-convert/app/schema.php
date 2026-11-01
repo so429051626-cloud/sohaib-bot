@@ -10,7 +10,7 @@ if (!defined('MADIX')) {
     exit;
 }
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 
 function migrate(PDO $pdo): void
 {
@@ -154,6 +154,36 @@ function migrate(PDO $pdo): void
         if ($ver === 0) {
             seed_defaults($pdo);
         }
+        // v3: مزوّد الذكاء الاصطناعي (Claude أو Gemini)
+        foreach (array('ai_models', 'api_keys') as $tbl) {
+            $cols = array();
+            foreach ($pdo->query('PRAGMA table_info(' . $tbl . ')')->fetchAll() as $c) {
+                $cols[] = $c['name'];
+            }
+            if (!in_array('provider', $cols, true)) {
+                $pdo->exec('ALTER TABLE ' . $tbl . ' ADD COLUMN provider TEXT NOT NULL DEFAULT \'anthropic\'');
+            }
+        }
+        // v4: اسم المستخدم للدخول
+        $ucols = array();
+        foreach ($pdo->query('PRAGMA table_info(users)')->fetchAll() as $c) {
+            $ucols[] = $c['name'];
+        }
+        if (!in_array('username', $ucols, true)) {
+            $pdo->exec('ALTER TABLE users ADD COLUMN username TEXT');
+        }
+        $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users (username COLLATE NOCASE)');
+
+        $gm = $pdo->prepare('INSERT OR IGNORE INTO ai_models (model_id, label, description, price_in, price_out, effort, use_fallbacks, is_active, is_default, sort, max_tokens, page_cost, provider, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, 16000, 1, \'google\', ?)');
+        foreach (array(
+            array('gemini-flash-latest', 'Gemini سريع', 'Google Gemini Flash', 0, 0, 'low', 1, 10),
+            array('gemini-3.6-flash', 'Gemini 3.6 Flash', 'Google Gemini', 0, 0, 'low', 0, 11),
+            array('gemini-flash-lite-latest', 'Gemini اقتصادي', 'Google Gemini Flash-Lite', 0, 0, 'low', 0, 12),
+        ) as $g) {
+            $g[] = gmdate('Y-m-d H:i:s');
+            $gm->execute($g);
+        }
+
         $st2 = $pdo->prepare('INSERT OR IGNORE INTO settings (k, v, updated_at) VALUES (?, ?, ?)');
         foreach (array('web_app' => '0', 'apk_version' => '') as $k2 => $v2) {
             $st2->execute(array($k2, $v2, gmdate('Y-m-d H:i:s')));
