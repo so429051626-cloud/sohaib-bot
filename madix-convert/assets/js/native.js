@@ -130,7 +130,7 @@
   N._aes = AES;
   function hexBytes(h) { var o = new Uint8Array(h.length / 2); for (var i = 0; i < o.length; i++) o[i] = parseInt(h.substr(i * 2, 2), 16); return o; }
   function bytesHex(b) { var s = ''; for (var i = 0; i < b.length; i++) s += (b[i] < 16 ? '0' : '') + b[i].toString(16); return s; }
-  N.isChallenge = function (text) { return typeof text === 'string' && /slowAES|aes\.min\.js|aes\.js/.test(text) && /toNumbers\(/.test(text); };
+  N.isChallenge = function (text) { return typeof text === 'string' && /toNumbers\(\s*"[0-9a-f]+"\s*\)/i.test(text) && /cookie/i.test(text); };
   /** يحسب كوكي الحماية ويحفظه للسيرفر */
   N.solveChallenge = function (html, serverUrl) {
     var m = String(html).match(/toNumbers\("([0-9a-f]+)"\)[\s\S]*?toNumbers\("([0-9a-f]+)"\)[\s\S]*?toNumbers\("([0-9a-f]+)"\)/i);

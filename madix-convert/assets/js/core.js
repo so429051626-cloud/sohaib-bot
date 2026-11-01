@@ -359,6 +359,8 @@
     h.Accept = 'application/json';
     if (K.remote) {
       h['X-Client'] = 'app';
+      h['X-Requested-With'] = 'XMLHttpRequest';
+      if (K.nat && K.nat.on && navigator.userAgent) h['User-Agent'] = navigator.userAgent;
       var t = K.pref.get('token', '');
       if (t) h['X-Auth-Token'] = t;
     } else if (api.csrf) {
@@ -381,7 +383,7 @@
       if (isChallenge(txt)) throw challengeError(txt);
       var data = null;
       try { data = JSON.parse(txt); } catch (e) { data = null; }
-      if (!data) throw apiError(res.status >= 500 ? 'السيرفر ما رد بشكل صحيح (' + res.status + ')' : 'رد غير متوقع من السيرفر', res.status);
+      if (!data) throw apiError((res.status >= 500 ? 'السيرفر ما رد بشكل صحيح' : 'رد غير متوقع من السيرفر') + ' (' + res.status + ')' + snippet(txt), res.status);
       if (!res.ok || data.ok === false) {
         if (res.status === 401 && api.onAuthLost) api.onAuthLost();
         throw apiError(data.error || 'حدث خطأ', res.status, data);
@@ -390,6 +392,22 @@
       if (data.token) api.setToken(data.token);
       return data;
     });
+  }
+  /** مقتطف قصير من رد السيرفر لتشخيص المشكلة */
+  function snippet(txt) {
+    var t = String(txt || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t) return K.remote ? ' — رد فاضي' : '';
+    return K.remote ? ' — ' + t.slice(0, 90) : '';
+  }
+  /** بالتطبيق: نبعث البيانات كنموذج عادي (مقبول عند كل الاستضافات) */
+  function formBody(body) {
+    var p = new URLSearchParams();
+    Object.keys(body || {}).forEach(function (k) {
+      var v = body[k];
+      if (v === null || v === undefined) return;
+      p.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+    });
+    return p.toString();
   }
   function netError() { return apiError(navigator.onLine === false ? 'ما في اتصال بالإنترنت' : 'تعذّر الاتصال بالسيرفر — تأكد من النت وحاول مرة ثانية', 0); }
   api.get = function (action, params) {
@@ -407,8 +425,8 @@
   api.post = function (action, body, retried) {
     return fetch(endpoint(action), {
       method: 'POST', credentials: K.remote ? 'omit' : 'same-origin', cache: 'no-store',
-      headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(body || {})
+      headers: authHeaders({ 'Content-Type': K.remote ? 'application/x-www-form-urlencoded; charset=UTF-8' : 'application/json' }),
+      body: K.remote ? formBody(body) : JSON.stringify(body || {})
     }).then(parseResponse, function () { throw netError(); }).catch(function (e) {
       if (e.challenge && !retried) return solve(e).then(function () { return api.post(action, body, true); });
       if (e.status === 419 && !retried) {
@@ -436,7 +454,7 @@
         }
         var data = null;
         try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
-        if (!data) return reject(apiError(xhr.status === 413 ? 'حجم الصورة أكبر من المسموح على السيرفر' : 'رد غير متوقع من السيرفر (' + xhr.status + ')', xhr.status));
+        if (!data) return reject(apiError(xhr.status === 413 ? 'حجم الصورة أكبر من المسموح على السيرفر' : 'رد غير متوقع من السيرفر (' + xhr.status + ')' + snippet(xhr.responseText), xhr.status));
         if (xhr.status === 419 && !retried) {
           return api.get('me').then(function () { return api.upload(action, form, onProgress, true); }).then(resolve, reject);
         }

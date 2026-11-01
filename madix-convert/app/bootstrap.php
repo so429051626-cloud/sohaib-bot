@@ -478,7 +478,7 @@ function send_cors(): void
     if ($origin !== '' && in_array($origin, $allowed, true)) {
         header('Access-Control-Allow-Origin: ' . $origin);
         header('Vary: Origin');
-        header('Access-Control-Allow-Headers: Content-Type, Accept, X-Auth-Token, X-Client, X-CSRF-Token');
+        header('Access-Control-Allow-Headers: Content-Type, Accept, X-Auth-Token, X-Client, X-CSRF-Token, X-Requested-With');
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Max-Age: 86400');
     }
