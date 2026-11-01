@@ -430,6 +430,64 @@ function check_csrf(): void
     }
 }
 
+/** توكن تطبيق الجوال (بدل الكوكيز) */
+function request_token(): string
+{
+    $t = isset($_SERVER['HTTP_X_AUTH_TOKEN']) ? (string)$_SERVER['HTTP_X_AUTH_TOKEN'] : '';
+    if ($t === '' && isset($_SERVER['HTTP_AUTHORIZATION']) && stripos((string)$_SERVER['HTTP_AUTHORIZATION'], 'Bearer ') === 0) {
+        $t = substr((string)$_SERVER['HTTP_AUTHORIZATION'], 7);
+    }
+    $t = trim($t);
+    return preg_match('/^[a-f0-9]{64}$/', $t) ? $t : '';
+}
+
+function is_app_client(): bool
+{
+    return request_token() !== '' || (isset($_SERVER['HTTP_X_CLIENT']) && $_SERVER['HTTP_X_CLIENT'] === 'app');
+}
+
+function issue_token(array $u): string
+{
+    $raw = bin2hex(random_bytes(32));
+    $device = isset($_SERVER['HTTP_USER_AGENT']) ? str_cut((string)$_SERVER['HTTP_USER_AGENT'], 160) : '';
+    q('INSERT INTO tokens (user_id, token_hash, sv, device, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?)', array((int)$u['id'], hash('sha256', $raw), (int)($u['session_v'] ?? 0), $device, now_utc(), now_utc()));
+    q('UPDATE users SET last_login_at = ? WHERE id = ?', array(now_utc(), (int)$u['id']));
+    if (random_int(1, 20) === 1) {
+        q('DELETE FROM tokens WHERE last_used_at < ?', array(gmdate('Y-m-d H:i:s', time() - 180 * 86400)));
+    }
+    return $raw;
+}
+
+function revoke_token(): void
+{
+    $t = request_token();
+    if ($t !== '') {
+        q('DELETE FROM tokens WHERE token_hash = ?', array(hash('sha256', $t)));
+    }
+}
+
+/** السماح لتطبيق الجوال بالاتصال (CORS) */
+function send_cors(): void
+{
+    $origin = isset($_SERVER['HTTP_ORIGIN']) ? (string)$_SERVER['HTTP_ORIGIN'] : '';
+    $allowed = array('https://localhost', 'http://localhost', 'capacitor://localhost', 'ionic://localhost');
+    $extra = getenv('MADIX_CORS_ORIGINS');
+    if ($extra !== false && $extra !== '') {
+        $allowed = array_merge($allowed, array_map('trim', explode(',', $extra)));
+    }
+    if ($origin !== '' && in_array($origin, $allowed, true)) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+        header('Vary: Origin');
+        header('Access-Control-Allow-Headers: Content-Type, Accept, X-Auth-Token, X-Client, X-CSRF-Token');
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Max-Age: 86400');
+    }
+    if (isset($_SERVER['REQUEST_METHOD']) && strtoupper((string)$_SERVER['REQUEST_METHOD']) === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
+}
+
 function current_user(): ?array
 {
     static $loaded = false;
@@ -438,6 +496,21 @@ function current_user(): ?array
         return $user;
     }
     $loaded = true;
+    $tok = request_token();
+    if ($tok !== '' || is_app_client()) {
+        if ($tok === '') {
+            return null;
+        }
+        $row = q_one('SELECT t.id AS token_id, t.sv AS token_sv, t.last_used_at AS token_used, u.* FROM tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ?', array(hash('sha256', $tok)));
+        if (!$row || (int)$row['is_blocked'] === 1 || (int)$row['token_sv'] !== (int)$row['session_v']) {
+            return null;
+        }
+        if (!$row['token_used'] || strtotime((string)$row['token_used'] . ' UTC') < time() - 600) {
+            q('UPDATE tokens SET last_used_at = ? WHERE id = ?', array(now_utc(), (int)$row['token_id']));
+        }
+        $user = $row;
+        return $user;
+    }
     $uid = isset($_SESSION['uid']) ? (int)$_SESSION['uid'] : 0;
     if ($uid <= 0) {
         return null;
@@ -556,7 +629,7 @@ function asset_version(): string
         return $v;
     }
     $mt = 0;
-    foreach (array('assets/css/app.css', 'assets/js/core.js', 'assets/js/imaging.js', 'assets/js/analysis.js', 'assets/js/xlsx.js', 'assets/js/pdf.js', 'assets/js/boot.js', 'assets/js/app.js', 'assets/js/admin.js', 'sw.js') as $f) {
+    foreach (array('assets/css/app.css', 'assets/js/core.js', 'assets/js/imaging.js', 'assets/js/analysis.js', 'assets/js/xlsx.js', 'assets/js/pdf.js', 'assets/js/boot.js', 'assets/js/native.js', 'assets/js/app.js', 'assets/js/admin.js', 'sw.js') as $f) {
         $p = app_dir() . '/' . $f;
         if (is_file($p)) {
             $mt = max($mt, (int)filemtime($p));
@@ -570,6 +643,40 @@ function app_name(): string
 {
     $n = setting('app_name', 'MADIX Convert');
     return $n === '' ? 'MADIX Convert' : $n;
+}
+
+/** ملف تطبيق أندرويد: المرفوع من لوحة الإدارة أو الموجود بمجلد download */
+function apk_file(): string
+{
+    $up = data_dir() . '/app/MADIX-Convert.apk';
+    if (is_file($up)) {
+        return $up;
+    }
+    $repo = app_dir() . '/download/MADIX-Convert.apk';
+    return is_file($repo) ? $repo : '';
+}
+
+function server_base_url(): string
+{
+    $host = isset($_SERVER['HTTP_HOST']) ? preg_replace('/[^A-Za-z0-9.:\-\[\]]/', '', (string)$_SERVER['HTTP_HOST']) : 'localhost';
+    return (is_https() ? 'https' : 'http') . '://' . $host . rtrim(base_path(), '/');
+}
+
+function serve_apk(): void
+{
+    $f = apk_file();
+    if ($f === '') {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'APK not available';
+        return;
+    }
+    header('Content-Type: application/vnd.android.package-archive');
+    header('Content-Disposition: attachment; filename="MADIX-Convert.apk"');
+    header('Content-Length: ' . (string)filesize($f));
+    header('Cache-Control: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    readfile($f);
 }
 
 /** اسم التطبيق كشعار: الكلمة الأولى عريضة والباقي أخف */

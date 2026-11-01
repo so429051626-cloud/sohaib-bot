@@ -52,6 +52,9 @@ function api_dispatch(string $action, string $scope): void
         'audit' => array('GET', 'admin', 'adm_audit'),
         'scans' => array('GET', 'admin', 'adm_scans'),
         'backup' => array('GET', 'admin', 'adm_backup'),
+        'app_info' => array('GET', 'admin', 'adm_app_info'),
+        'apk_upload' => array('POST', 'admin', 'adm_apk_upload'),
+        'apk_delete' => array('POST', 'admin', 'adm_apk_delete'),
     );
     $routes = $scope === 'admin' ? $admin : $app;
 
@@ -64,7 +67,7 @@ function api_dispatch(string $action, string $scope): void
         if ($reqMethod !== $method) {
             throw new ApiError('طريقة الطلب غير صحيحة', 405);
         }
-        if ($method === 'POST') {
+        if ($method === 'POST' && !is_app_client()) {
             check_csrf();
         }
         if ($level === 'user') {
@@ -124,6 +127,7 @@ function app_public_info(): array
         'ai_ready' => ai_ready(),
         'version' => APP_VERSION,
         'icon_v' => setting('icon_version', '0'),
+        'apk' => apk_file() !== '',
     );
 }
 
@@ -232,9 +236,8 @@ function api_register(): array
     }
     rate_hit($ipKey);
     $u = q_one('SELECT * FROM users WHERE id = ?', array($uid));
-    login_user($u);
     audit('تسجيل حساب', $phone, $uid);
-    return array('user' => public_user($u), 'csrf' => csrf_token());
+    return auth_response($u);
 }
 
 function api_login(): array
@@ -258,13 +261,26 @@ function api_login(): array
         q('UPDATE users SET password_hash = ? WHERE id = ?', array(password_hash($pass, PASSWORD_DEFAULT), (int)$u['id']));
     }
     rate_clear($phKey);
+    audit('تسجيل دخول', is_app_client() ? 'التطبيق' : 'المتصفح', (int)$u['id']);
+    return auth_response($u);
+}
+
+/** بعد الدخول: التطبيق بياخد توكن، والمتصفح بياخد جلسة */
+function auth_response(array $u): array
+{
+    if (is_app_client()) {
+        return array('user' => public_user($u), 'token' => issue_token($u));
+    }
     login_user($u);
-    audit('تسجيل دخول', '', (int)$u['id']);
     return array('user' => public_user($u), 'csrf' => csrf_token());
 }
 
 function api_logout(): array
 {
+    if (request_token() !== '') {
+        revoke_token();
+        return array();
+    }
     $_SESSION = array();
     session_regenerate_id(true);
     $_SESSION['csrf'] = bin2hex(random_bytes(24));
@@ -797,7 +813,7 @@ function adm_code_update(): array
 
 function settings_keys(): array
 {
-    return array('app_name', 'tagline', 'footer_text', 'contact_phone', 'currency', 'prices', 'signup_pages', 'allow_register', 'free_retries', 'scan_rate_limit', 'max_image_mb', 'announcement', 'maintenance');
+    return array('app_name', 'tagline', 'footer_text', 'contact_phone', 'currency', 'prices', 'signup_pages', 'allow_register', 'free_retries', 'scan_rate_limit', 'max_image_mb', 'announcement', 'maintenance', 'web_app');
 }
 
 function adm_settings(): array
@@ -813,7 +829,7 @@ function adm_settings_save(): array
 {
     $in = input();
     $ints = array('signup_pages' => array(0, 1000), 'free_retries' => array(0, 10), 'scan_rate_limit' => array(5, 1000), 'max_image_mb' => array(1, 20));
-    $bools = array('allow_register', 'maintenance');
+    $bools = array('allow_register', 'maintenance', 'web_app');
     foreach (settings_keys() as $k) {
         if (!array_key_exists($k, $in)) {
             continue;
@@ -1041,6 +1057,63 @@ function adm_scans(): array
 {
     $items = q('SELECT s.id, s.model, s.status, s.rows_count, s.charged, s.input_tokens, s.output_tokens, s.cost_usd, s.ms, s.error, s.created_at, u.name, u.phone FROM scans s LEFT JOIN users u ON u.id = s.user_id ORDER BY s.id DESC LIMIT 300')->fetchAll();
     return array('items' => $items);
+}
+
+// ---------------- تطبيق أندرويد ----------------
+
+function adm_app_info(): array
+{
+    $f = apk_file();
+    $base = server_base_url();
+    return array(
+        'apk' => $f !== '',
+        'uploaded' => $f !== '' && strpos($f, data_dir()) === 0,
+        'size' => $f !== '' ? (int)filesize($f) : 0,
+        'updated' => $f !== '' ? gmdate('Y-m-d H:i:s', (int)filemtime($f)) : '',
+        'version' => setting('apk_version', ''),
+        'server_url' => $base,
+        'download_url' => $base . '/index.php?download=apk',
+        'landing_url' => $base . '/',
+        'web_app' => setting('web_app', '0') === '1',
+    );
+}
+
+function adm_apk_upload(): array
+{
+    @set_time_limit(300);
+    if (empty($_FILES['apk']) || (int)$_FILES['apk']['error'] !== UPLOAD_ERR_OK) {
+        $err = isset($_FILES['apk']['error']) ? (int)$_FILES['apk']['error'] : -1;
+        throw new ApiError($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE ? 'حجم الملف أكبر من المسموح على السيرفر' : 'اختر ملف APK');
+    }
+    $tmp = (string)$_FILES['apk']['tmp_name'];
+    $size = (int)filesize($tmp);
+    $fh = @fopen($tmp, 'rb');
+    $magic = $fh ? (string)fread($fh, 2) : '';
+    if ($fh) {
+        fclose($fh);
+    }
+    if ($size < 100000 || $size > 200 * 1048576 || $magic !== 'PK') {
+        throw new ApiError('الملف لازم يكون تطبيق أندرويد (APK)');
+    }
+    $dir = sub_data_dir('app');
+    if (!@move_uploaded_file($tmp, $dir . '/MADIX-Convert.apk')) {
+        if (!@rename($tmp, $dir . '/MADIX-Convert.apk')) {
+            throw new ApiError('تعذّر حفظ الملف على السيرفر');
+        }
+    }
+    set_setting('apk_version', in_str('version', 30));
+    audit('رفع تطبيق أندرويد', in_str('version', 30));
+    return adm_app_info();
+}
+
+function adm_apk_delete(): array
+{
+    $f = data_dir() . '/app/MADIX-Convert.apk';
+    if (is_file($f)) {
+        @unlink($f);
+    }
+    audit('حذف ملف التطبيق المرفوع');
+    return adm_app_info();
 }
 
 /** نسخة احتياطية من قاعدة البيانات */

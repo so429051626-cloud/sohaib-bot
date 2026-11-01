@@ -21,6 +21,10 @@ if (isset($_GET['asset'])) {
     exit;
 }
 
+if (isset($_GET['api'])) {
+    send_cors();
+}
+
 boot_or_die();
 
 if (isset($_GET['api'])) {
@@ -29,4 +33,14 @@ if (isset($_GET['api'])) {
     exit;
 }
 
-render_shell('app');
+if (isset($_GET['download'])) {
+    serve_apk();
+    exit;
+}
+
+// الموقع للإدارة وصفحة تحميل التطبيق؛ نسخة الويب بس إذا المدير فعّلها
+if (setting('web_app', '0') === '1' && (isset($_GET['web']) || isset($_GET['source']) || isset($_GET['go']))) {
+    render_shell('app');
+} else {
+    render_landing();
+}

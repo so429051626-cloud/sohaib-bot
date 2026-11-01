@@ -20,7 +20,7 @@
     return p[0] || '';
   }
   function appName() { return (S.app && S.app.name) || 'MADIX Convert'; }
-  function iconUrl(s) { return 'index.php?asset=icon&s=' + s + '&v=' + encodeURIComponent((S.app && S.app.icon_v) || document.body.getAttribute('data-icon-v') || '0'); }
+  function iconUrl(s) { if (K.remote) return 'assets/img/icon-' + (s >= 512 ? 512 : 192) + '.png'; return 'index.php?asset=icon&s=' + s + '&v=' + encodeURIComponent((S.app && S.app.icon_v) || document.body.getAttribute('data-icon-v') || '0'); }
 
   function render(node) {
     freeUrls();
@@ -154,6 +154,12 @@
   camInput.addEventListener('change', onPicked);
   galInput.addEventListener('change', onPicked);
   function pick(mode, handler) {
+    if (K.nat && K.nat.on) {
+      (mode === 'camera' ? K.nat.takePhoto() : K.nat.pickPhotos(40)).then(function (files) {
+        if (files && files.length) handler(files, mode);
+      }, function (e) { if (!K.nat.isCancel(e)) K.toast((e && e.message) || 'ما قدرنا نفتح الكاميرا', 'error'); });
+      return;
+    }
     pickHandler = handler;
     (mode === 'camera' ? camInput : galInput).click();
   }
@@ -218,8 +224,8 @@
     var app = S.app || {};
     if (S.setup) {
       render(el('div', { class: 'auth' }, authHero(), el('div', { class: 'auth-card stack' },
-        el('div', { class: 'notice amber' }, ic('alert'), el('div', {}, el('b', { text: 'التطبيق بحاجة لإعداد أول مرة' }), el('div', { class: 'small', text: 'افتح لوحة الإدارة وأنشئ حساب المدير، وبعدها أضف مفتاح API.' }))),
-        el('a', { class: 'btn btn-primary btn-block btn-lg', href: 'admin.php' }, ic('lock'), 'فتح لوحة الإدارة')), K.footer(app.footer)));
+        el('div', { class: 'notice amber' }, ic('alert'), el('div', {}, el('b', { text: 'التطبيق بحاجة لإعداد أول مرة' }), null)),
+        el('a', { class: 'btn btn-primary btn-block btn-lg', href: (K.remote ? K.serverUrl() + '/' : '') + 'admin.php', target: K.remote ? '_blank' : null, rel: 'noopener' }, ic('lock'), 'فتح لوحة الإدارة')), K.footer(app.footer)));
       return;
     }
     var canRegister = app.allow_register !== false;
@@ -309,8 +315,7 @@
     K.sheet({
       title: 'نسيت كلمة السر؟',
       body: el('div', { class: 'stack' },
-        el('p', { class: 'muted', text: 'تواصل مع إدارة التطبيق وبيعطوك كلمة سر مؤقتة تدخل فيها وبعدها بتغيرها من الإعدادات.' }),
-        c ? el('a', { class: 'btn btn-primary btn-block', href: waLink(c, 'السلام عليكم، نسيت كلمة السر لحسابي في ' + appName()), target: '_blank', rel: 'noopener' }, ic('msg'), 'تواصل عبر واتساب') : el('p', { class: 'small muted', text: 'رقم التواصل غير مضاف بعد.' }))
+        c ? el('a', { class: 'btn btn-primary btn-block', href: waLink(c, 'السلام عليكم، نسيت كلمة السر لحسابي في ' + appName()), target: '_blank', rel: 'noopener' }, ic('msg'), 'تواصل مع الإدارة عبر واتساب') : el('p', { class: 'muted', text: 'تواصل مع الإدارة' }))
     });
   }
 
@@ -342,7 +347,7 @@
         el('div', { class: 'hero-scan-line' }),
         el('div', { class: 'greet', text: 'أهلاً، ' + firstName(S.user.name) }),
         el('h1', { text: 'حوّل كشفك لإكسل بثواني' }),
-        el('p', { text: 'صوّر الكشف المكتوب بخط اليد، والتطبيق بيقرأه وبيطلعلك المكررات برقم الهوية والأرقام الغلط.' }),
+
         el('div', { class: 'hero-actions' },
           el('button', { class: 'btn btn-primary', type: 'button', on: { click: function () { startNew('camera'); } } }, ic('camera'), 'صوّر كشف'),
           el('button', { class: 'btn btn-glass', type: 'button', on: { click: function () { startNew('gallery'); } } }, ic('image'), 'من المعرض'))),
@@ -361,13 +366,7 @@
       tiles.appendChild(tile('copy', K.num(dups), 'مكرر تم كشفه', 'amber'));
       K.clear(list);
       if (!sts.length) {
-        list.appendChild(el('div', { class: 'card stack' },
-          el('div', { class: 'card-title' }, ic('sparkles'), 'كيف بيشتغل؟'),
-          el('div', { class: 'steps' },
-            step(1, 'صوّر الكشف', 'من الكاميرا أو المعرض — بتقدر تضيف كذا صفحة لنفس الكشف.'),
-            step(2, 'الذكاء الاصطناعي بيقرأ', 'بيحوّل خط اليد لجدول، وبيفحص أرقام الهوية وبيطلع المكررات.'),
-            step(3, 'راجع وصدّر', 'صحّح أي خانة بسرعة، وصدّر ملف إكسل منسق — والصور بتنحذف تلقائياً.')),
-          el('div', { class: 'notice green' }, ic('shield'), el('div', { class: 'small', text: 'خصوصيتك محفوظة: الصور ما بتنحفظ على السيرفر أبداً، والبيانات بتضل على جهازك.' }))));
+        list.appendChild(el('div', { class: 'empty' }, ic('scan'), el('h3', { text: 'ما في كشوفات لسا' })));
         return;
       }
       sts.slice(0, 5).forEach(function (st) { list.appendChild(statementItem(st)); });
@@ -460,7 +459,6 @@
       K.sheet({
         title: 'دمج كشوفات',
         body: el('div', { class: 'stack' },
-          el('p', { class: 'muted small', text: 'اختار الكشوفات اللي بدك تدمجها — بنطلعلك المكررات بينها برقم الهوية، مع عمود "المصدر".' }),
           el('div', { class: 'field' }, el('label', { text: 'اسم الكشف الجديد' }), title),
           box),
         actions: [{ label: 'إلغاء' }, {
@@ -557,9 +555,8 @@
           el('div', { class: 'muted small', text: st.pages.length + ' ' + K.pagesWord(st.pages.length) + ' • ' + st.rows.filter(function (r) { return !r.deleted; }).length + ' صف مقروء' }))),
       info.length ? el('div', { class: 'stack' }, info) : null,
       st.rows.length ? el('button', { class: 'btn btn-soft btn-block btn-lg', type: 'button', on: { click: function () { K.go('/s/' + st.id + '/review'); } } }, ic('sheet'), 'عرض الجدول ومراجعة البيانات') : null,
-      el('div', {}, el('div', { class: 'section-title' }, el('h2', { text: 'الصفحات' }), el('span', { class: 'small muted', text: 'اضغط على الصفحة للتعديل' })), grid),
-      modelBox,
-      el('div', { class: 'notice' }, ic('info'), el('div', { class: 'small', text: 'نصيحة: صوّر الورقة من فوق بإضاءة منيحة، وخلي الكشف يعبي الصورة. لو الكشف طويل صوّره على أكثر من صفحة.' })));
+      el('div', {}, el('div', { class: 'section-title' }, el('h2', { text: 'الصفحات' }), null), grid),
+      modelBox);
     render(layout({ back: st.rows.length ? '/s/' + st.id + '/review' : '/', title: 'الكشف', actions: more, body: body, cta: cta, nav: 'list' }));
   }
 
@@ -845,11 +842,11 @@
     function mkTile(icon, k, cls) { var v = el('div', { class: 'v', text: '0' }); var t = el('div', { class: 'tile ' + (cls || '') }, ic(icon), v, el('div', { class: 'k', text: k })); t._v = v; return t; }
     var tDup = mkTile('copy', 'مكرر', 'amber'), tBad = mkTile('idcard', 'هوية غلط', 'red'), tMiss = mkTile('alert', 'ناقص', 'blue'), tUnc = mkTile('eye', 'مراجعة', 'yellow');
     var dupNotice = el('button', { class: 'notice amber', type: 'button', hidden: true, style: { width: '100%', border: '0', 'margin-top': '12px', 'text-align': 'start', cursor: 'pointer' }, on: { click: function () { K.go('/s/' + st.id + '/dupes'); } } });
-    var noIdNotice = el('div', { class: 'notice', hidden: true, style: { 'margin-top': '12px' } }, ic('info'), el('div', { class: 'small', text: 'ما لقينا عمود رقم هوية. لو موجود، اضغط على عنوان العمود وغيّر نوعه لـ "رقم هوية" حتى نفحص المكررات.' }));
+    var noIdNotice = el('div', { hidden: true });
     var crossInput = el('input', { type: 'checkbox', checked: state.cross });
     crossInput.addEventListener('change', function () { state.cross = crossInput.checked; refresh(); });
     var crossToggle = el('label', { class: 'switch card flat', style: { padding: '10px 14px', 'margin-top': '12px' } },
-      el('div', {}, el('b', { class: 'small', text: 'افحص مع كشوفاتي السابقة' }), el('div', { class: 'tiny muted', text: 'يعلّم الأشخاص الموجودين بكشوفات ثانية على جهازك' })),
+      el('b', { class: 'small', text: 'افحص مع كشوفاتي السابقة' }),
       crossInput, el('span', { class: 'track' }));
     var search = el('input', { class: 'input', type: 'search', placeholder: 'ابحث بالاسم أو رقم الهوية…', value: state.q });
     search.addEventListener('input', K.debounce(function () { state.q = search.value; state.limit = 200; refresh(); }, 200));
@@ -897,7 +894,7 @@
       if (C.dupGroups) {
         K.clear(dupNotice);
         dupNotice.appendChild(ic('copy'));
-        dupNotice.appendChild(el('div', { class: 'grow' }, el('b', { text: C.dupGroups + ' ' + (C.dupGroups === 1 ? 'شخص مكرر' : 'أشخاص مكررين') + ' برقم الهوية' }), el('div', { class: 'small', text: 'اضغط لعرض المكررات وحذفها بضغطة' })));
+        dupNotice.appendChild(el('div', { class: 'grow' }, el('b', { text: C.dupGroups + ' ' + (C.dupGroups === 1 ? 'شخص مكرر' : 'أشخاص مكررين') + ' برقم الهوية' }), null));
         dupNotice.appendChild(ic('chevl'));
       }
       noIdNotice.hidden = !!A.idCols.length || !st.columns.length;
@@ -913,7 +910,8 @@
       undoBtn.disabled = !h.undo.length;
       redoBtn.disabled = !h.redo.length;
       selBtn.classList.toggle('is-on', state.select);
-      hint.textContent = state.select ? 'اضغط على الصفوف لتحديدها، وبعدها اختار العملية من الشريط تحت' : 'اضغط على أي خانة لتعديلها مباشرة (Enter للي تحتها) • اضغط على رقم الصف للتفاصيل والصورة';
+      hint.textContent = '';
+      hint.hidden = true;
       drawTable();
       updateBulk();
     }
@@ -1229,13 +1227,13 @@
       }
       ta.addEventListener('input', preview);
       head.addEventListener('change', function () { ta._auto = false; preview(); });
-      var readBtn = navigator.clipboard && navigator.clipboard.readText && window.isSecureContext
-        ? el('button', { class: 'btn btn-soft btn-sm', type: 'button', on: { click: function () { navigator.clipboard.readText().then(function (t) { ta.value = t; preview(); }, function () { K.toast('اسمح بالوصول للحافظة أو الصق يدوياً', 'warn'); }); } } }, ic('files', 'sm'), 'لصق من الحافظة')
+      var readClip = (K.nat && K.nat.on) ? K.nat.paste : (navigator.clipboard && navigator.clipboard.readText && window.isSecureContext ? function () { return navigator.clipboard.readText(); } : null);
+      var readBtn = readClip
+        ? el('button', { class: 'btn btn-soft btn-sm', type: 'button', on: { click: function () { readClip().then(function (t) { ta.value = t; preview(); }, function () { K.toast('ما قدرنا نقرأ الحافظة', 'warn'); }); } } }, ic('files', 'sm'), 'لصق من الحافظة')
         : null;
       K.sheet({
         title: 'لصق صفوف',
         body: el('div', { class: 'stack' },
-          el('p', { class: 'small muted', text: 'انسخ الصفوف من Excel أو أي جدول والصقها هون — بتنضاف كصفوف جديدة بنفس ترتيب الأعمدة.' }),
           readBtn, ta,
           el('label', { class: 'switch' }, el('b', { class: 'small', text: 'أول سطر هو عناوين الأعمدة' }), head, el('span', { class: 'track' })),
           info),
@@ -1300,7 +1298,7 @@
         title: 'تعديل ' + rows.length + ' صف',
         body: el('div', { class: 'stack' },
           el('div', { class: 'field' }, el('label', { text: 'العمود' }), colSel),
-          el('div', { class: 'field' }, el('label', { text: 'القيمة' }), val, el('div', { class: 'hint', text: 'مثال: اكتب اسم المنطقة لكل الصفوف المحددة مرة وحدة' }))),
+          el('div', { class: 'field' }, el('label', { text: 'القيمة' }), val)),
         actions: [{ label: 'إلغاء' }, {
           label: 'تطبيق', primary: true, icon: 'check', onClick: function () {
             var c = colById(colSel.value);
@@ -1393,7 +1391,7 @@
       title: 'العمود: ' + c.label,
       body: el('div', { class: 'stack' },
         el('div', { class: 'field' }, el('label', { text: 'اسم العمود' }), name),
-        el('div', { class: 'field' }, el('label', { text: 'نوع البيانات' }), kind, el('div', { class: 'hint', text: 'نوع "رقم هوية" بيفعّل فحص رقم التحقق وكشف المكررات، و"اسم" بيفعّل كشف تشابه الأسماء.' })),
+        el('div', { class: 'field' }, el('label', { text: 'نوع البيانات' }), kind),
         el('div', { class: 'row' }, el('span', { class: 'label grow', text: 'الترتيب' }), moveR, moveL),
         el('button', { class: 'btn btn-danger btn-block', type: 'button', on: { click: delCol } }, ic('trash'), 'حذف العمود')),
       actions: [{ label: 'إلغاء' }, {
@@ -1602,7 +1600,8 @@
     var withDupes = el('input', { type: 'checkbox', checked: true });
     var withIds = el('input', { type: 'checkbox', checked: true });
     function sw(input, t, s) { return el('label', { class: 'switch' }, el('div', {}, el('b', { class: 'small', text: t }), s ? el('div', { class: 'tiny muted', text: s }) : null), input, el('span', { class: 'track' })); }
-    var canShare = !!(navigator.canShare && window.File);
+    var nat = !!(K.nat && K.nat.on);
+    var canShare = nat || !!(navigator.canShare && window.File);
     var sh;
     function opts() { return { name: name.value, deleteImages: delImgs.checked, dupes: withDupes.checked, ids: withIds.checked }; }
     function run(kind) { return function () { sh.close(); doExport(st, kind, opts()); }; }
@@ -1613,13 +1612,14 @@
         el('div', { class: 'card flat', style: { padding: '4px 14px' } },
           sw(withDupes, 'ورقة المكررات'),
           sw(withIds, 'ورقة تدقيق أرقام الهوية'),
-          sw(delImgs, 'حذف صور الكشف بعد التصدير', 'للخصوصية — البيانات بتضل محفوظة')),
+          sw(delImgs, 'حذف صور الكشف بعد التصدير')),
         el('div', { class: 'grid-2' },
           el('button', { class: 'btn btn-primary', type: 'button', on: { click: run('xlsx') } }, ic('sheet'), 'Excel'),
           el('button', { class: 'btn btn-dark', type: 'button', on: { click: run('pdf') } }, ic('files'), 'PDF عالي الدقة'),
           canShare ? el('button', { class: 'btn', type: 'button', on: { click: run('share') } }, ic('share'), 'مشاركة') : null,
           el('button', { class: 'btn', type: 'button', on: { click: run('csv') } }, ic('files'), 'CSV'),
-          el('button', { class: 'btn', type: 'button', on: { click: run('print') } }, ic('printer'), 'طباعة / PDF')))
+          nat ? el('button', { class: 'btn', type: 'button', on: { click: run('save') } }, ic('download'), 'حفظ بالجهاز')
+            : el('button', { class: 'btn', type: 'button', on: { click: run('print') } }, ic('printer'), 'طباعة')))
     });
   }
 
@@ -1630,29 +1630,29 @@
     var fname = safeFileName(o.name || st.title);
     var p;
     try {
-      if (kind === 'xlsx' || kind === 'share') {
+      if (kind === 'xlsx' || kind === 'share' || kind === 'save') {
         var blob = K.xlsx.fromStatement(st, A, { dupes: o.dupes !== false, ids: o.ids !== false, appName: appName() });
-        if (kind === 'share') {
+        if (kind === 'save' && K.nat && K.nat.on) {
+          p = K.nat.saveToDevice(blob, fname + '.xlsx').then(function (where) { K.toast('انحفظ بـ ' + where, 'success', 4500); });
+        } else if (kind === 'share' && !(K.nat && K.nat.on)) {
           var file = new File([blob], fname + '.xlsx', { type: blob.type });
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            p = navigator.share({ files: [file], title: fname, text: 'كشف من ' + appName() });
+            p = navigator.share({ files: [file], title: fname, text: appName() });
           } else {
             K.downloadBlob(blob, fname + '.xlsx');
             p = Promise.resolve();
           }
         } else {
-          K.downloadBlob(blob, fname + '.xlsx');
-          p = Promise.resolve();
+          p = K.deliver(blob, fname + '.xlsx');
         }
       } else if (kind === 'csv') {
-        K.downloadBlob(toCsv(st, A), fname + '.csv');
-        p = Promise.resolve();
+        p = K.deliver(toCsv(st, A), fname + '.csv');
       } else if (kind === 'pdf') {
         var bar = el('span', { style: { width: '4%' } });
         var prog = K.sheet({ title: 'تجهيز ملف PDF', noClose: true, body: el('div', { class: 'stack' }, el('p', { class: 'muted', text: 'عم نرسم الكشف بدقة عالية…' }), el('div', { class: 'progress', style: { background: 'var(--surface-3)' } }, bar)) });
         p = K.pdf.fromStatement(st, A, { appName: appName(), iconUrl: iconUrl(192), onProgress: function (f) { bar.style.width = Math.round(f * 100) + '%'; } }).then(function (blob) {
           prog.close();
-          K.downloadBlob(blob, fname + '.pdf');
+          return K.deliver(blob, fname + '.pdf');
         }, function (e) { prog.close(); throw e; });
       } else if (kind === 'print') {
         printStatement(st, A);
@@ -1671,6 +1671,7 @@
       return saveStatement(st).then(function () { if (kind !== 'print') K.toast('تم التصدير ✓', 'success'); });
     }).catch(function (e) {
       if (e && e.name === 'AbortError') return;
+      if (K.nat && K.nat.on && K.nat.isCancel(e)) return;
       K.toast(kind === 'share' ? 'ما تمت المشاركة' : 'صار خطأ بالتصدير: ' + ((e && e.message) || ''), kind === 'share' ? 'warn' : 'error');
     });
   }
@@ -1761,7 +1762,7 @@
         el('div', { class: 'row between' }, el('div', { class: 'lbl', text: 'رصيدك الحالي' }), el('div', { class: 'chip-gold' })),
         el('div', { class: 'big' }, el('b', { 'data-balance': '1', text: K.num(S.user.pages) }), el('small', { text: 'صفحة' })),
         el('div', { class: 'foot' }, el('div', {}, el('div', { style: { 'font-weight': '700', color: '#fff' }, text: S.user.name }), el('div', { class: 'ltr', text: S.user.phone })), el('div', { text: appName() }))),
-      el('div', { class: 'card' }, el('div', { class: 'card-title' }, ic('ticket'), 'شحن بكود'), el('p', { class: 'muted small', style: { 'margin-bottom': '12px' }, text: 'اكتب الكود المطبوع على الكرت — كل كود فيه عدد صفحات.' }), form),
+      el('div', { class: 'card' }, el('div', { class: 'card-title' }, ic('ticket'), 'شحن بكود'), form),
       (app.prices && app.prices.length) || app.contact ? el('div', { class: 'card stack' },
         el('div', { class: 'card-title' }, ic('coins'), 'الأسعار'),
         app.prices && app.prices.length ? el('div', { class: 'price-list' }, app.prices.map(function (p) { return el('div', { class: 'price-row' }, ic('check', 'sm'), p); })) : null,
@@ -1796,14 +1797,13 @@
         el('button', { class: 'btn btn-icon btn-ghost', type: 'button', 'aria-label': 'تعديل الاسم', on: { click: editName } }, ic('edit'))),
       el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('sun'), 'المظهر'), seg),
       el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('shield'), 'الخصوصية'),
-        el('div', { class: 'field' }, el('label', { text: 'حذف صور الصفحات المقروءة تلقائياً' }), ttl, el('div', { class: 'hint', text: 'الصور بتنحذف فوراً بعد التصدير، وهذا حذف إضافي للصور اللي ما صدّرتها.' }))),
+        el('div', { class: 'field' }, el('label', { text: 'حذف صور الصفحات المقروءة تلقائياً' }), ttl)),
       el('div', { class: 'menu' },
         mi('wallet', 'المحفظة والأكواد', 'رصيدك: ' + K.num(u.pages) + ' صفحة', function () { K.go('/wallet'); }),
         mi('lock', 'تغيير كلمة السر', null, changePassword),
         S.installEvt ? mi('install', 'تثبيت التطبيق', 'على شاشة جوالك', doInstall) : null,
-        mi('info', 'طريقة الاستخدام', 'نصائح لأفضل قراءة', helpSheet),
-        mi('shield', 'كيف بنحمي بياناتك', null, privacySheet),
-        u.role === 'admin' ? mi('cpu', 'لوحة الإدارة', 'النماذج، المفاتيح، الأكواد، المستخدمين', function () { location.href = 'admin.php'; }) : null),
+        K.remote ? mi('link', 'السيرفر', K.serverUrl().replace(/^https?:\/\//, ''), serverSheet) : null,
+        u.role === 'admin' ? mi('cpu', 'لوحة الإدارة', null, function () { var url = (K.remote ? K.serverUrl() + '/' : '') + 'admin.php'; if (K.remote) window.open(url, '_system'); else location.href = url; }) : null),
       el('div', { class: 'menu' },
         mi('trash', 'مسح كل الكشوفات من الجهاز', 'ما بأثر على رصيدك', clearLocal, 'danger'),
         mi('logout', 'تسجيل الخروج', null, logout, 'danger')),
@@ -1830,29 +1830,18 @@
     });
   }
 
-  function helpSheet() {
+  /** تغيير رابط السيرفر (تطبيق الجوال) */
+  function serverSheet() {
+    var inp = el('input', { class: 'input ltr', type: 'url', value: K.serverUrl(), placeholder: 'https://example.com/madix-convert', autocomplete: 'off', spellcheck: 'false' });
     K.sheet({
-      title: 'طريقة الاستخدام',
-      body: el('div', { class: 'stack' },
-        el('div', { class: 'steps' },
-          step(1, 'صوّر بإضاءة منيحة', 'الورقة مسطحة، الجوال فوقها مباشرة، وبدون ظل.'),
-          step(2, 'عدّل الزوايا', 'اسحب النقاط الخضراء على زوايا الورقة — التطبيق بيعدّل الميلان لحاله.'),
-          step(3, 'كشف طويل؟', 'صوّره على كذا صفحة، والتطبيق بيكمّل نفس الأعمدة.'),
-          step(4, 'راجع الأصفر والأحمر', 'الأصفر = خانة مش واضحة، الأحمر = رقم هوية غلط. اضغط على الصف بتشوف صورته الأصلية.'),
-          step(5, 'صدّر', 'ملف إكسل فيه ورقة للكشف، وورقة للمكررات، وورقة لتدقيق الهويات.')),
-        el('div', { class: 'notice' }, ic('info'), el('div', { class: 'small', text: 'رقم الهوية الفلسطيني 9 أرقام وآخر رقم فيه "رقم تحقق" — لهيك التطبيق بيعرف إذا في رقم غلط حتى لو الخط واضح.' })))
-    });
-  }
-
-  function privacySheet() {
-    K.sheet({
-      title: 'كيف بنحمي بياناتك',
-      body: el('div', { class: 'stack' },
-        el('div', { class: 'steps' },
-          step('١', 'الصور ما بتنحفظ على السيرفر', 'الصورة بتنبعت للقراءة وبتنحذف فوراً من السيرفر.'),
-          step('٢', 'الكشوفات على جهازك فقط', 'الجداول محفوظة بذاكرة جوالك، مش عندنا.'),
-          step('٣', 'حذف تلقائي للصور', 'بعد التصدير، وبعد المدة اللي بتختارها من الإعدادات.'),
-          step('٤', 'اتصال مشفر', 'كل الاتصال بالسيرفر وبخدمة الذكاء الاصطناعي مشفر.')))
+      title: 'السيرفر',
+      body: el('div', { class: 'stack' }, inp),
+      actions: [{ label: 'إلغاء' }, { label: 'حفظ', primary: true, onClick: function () {
+        var old = K.serverUrl();
+        return K.setServer(inp.value).then(function () {
+          if (K.serverUrl() !== old) { K.api.setToken(''); S.user = null; location.hash = '#/'; location.reload(); }
+        });
+      } }]
     });
   }
 
@@ -1866,7 +1855,7 @@
   function logout() {
     K.confirm('تسجيل الخروج من الحساب؟ كشوفاتك بتضل محفوظة على الجهاز.', { ok: 'خروج' }).then(function (ok) {
       if (!ok) return;
-      K.api.post('logout', {}).catch(function () { }).then(function () { S.user = null; K.go('/', true); });
+      K.api.post('logout', {}).catch(function () { }).then(function () { K.api.setToken(''); S.user = null; K.go('/', true); });
     });
   }
 
@@ -1889,6 +1878,7 @@
   K.route('/new', guard(function () { K.go('/', true); setTimeout(function () { startNew('camera'); }, 50); }));
 
   K.api.onAuthLost = function () {
+    if (K.remote) K.api.setToken('');
     if (!S.user) return;
     S.user = null;
     K.toast('انتهت الجلسة، سجّل دخولك مرة ثانية', 'warn');
@@ -1900,7 +1890,49 @@
     render(el('div', { class: 'auth' }, authHero(), el('div', { class: 'auth-card stack' },
       el('div', { class: 'notice red' }, ic('alert'), el('div', {}, el('b', { text: 'تعذّر الاتصال' }), el('div', { class: 'small', text: e.message }))),
       el('button', { class: 'btn btn-primary btn-block', type: 'button', on: { click: function () { location.reload(); } } }, ic('refresh'), 'إعادة المحاولة'),
-      el('button', { class: 'btn btn-block', type: 'button', on: { click: offlineMode } }, ic('files'), 'فتح الكشوفات المحفوظة')), K.footer()));
+      el('button', { class: 'btn btn-block', type: 'button', on: { click: offlineMode } }, ic('files'), 'فتح الكشوفات المحفوظة'),
+      K.remote ? el('button', { class: 'btn btn-ghost btn-block', type: 'button', on: { click: function () { viewServerSetup(true); } } }, ic('link'), 'تغيير رابط السيرفر') : null), K.footer()));
+  }
+
+  /** ربط التطبيق بالسيرفر (أول تشغيل إذا الرابط مش مثبت بالتطبيق) */
+  function viewServerSetup(fromError) {
+    K.hideSplash();
+    var err = el('div', { class: 'form-error', hidden: true });
+    var inp = el('input', { class: 'input ltr', type: 'url', inputmode: 'url', value: K.serverUrl(), placeholder: 'https://example.com/madix-convert', autocomplete: 'off', spellcheck: 'false', autocapitalize: 'off' });
+    var btn = el('button', { class: 'btn btn-primary btn-block btn-lg', type: 'submit' }, ic('link'), 'اتصال');
+    var form = el('form', { class: 'stack' }, el('div', { class: 'field' }, el('label', { text: 'رابط السيرفر' }), inp), err, btn);
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      err.hidden = true;
+      K.busy(btn, true);
+      K.setServer(inp.value).then(function () { K.api.setToken(''); location.hash = '#/'; location.reload(); })
+        .catch(function (x) { err.textContent = x.message; err.hidden = false; }).then(function () { K.busy(btn, false); });
+    });
+    render(el('div', { class: 'auth' }, authHero(), el('div', { class: 'auth-card stack lg' }, form), K.footer()));
+    void fromError;
+  }
+
+  // زر الرجوع بالجوال: يسكّر النوافذ، وبعدين يرجع للشاشة الأم، وبالرئيسية ضغطتين للخروج
+  function parentRoute(h) {
+    var m;
+    if ((m = h.match(/^#\/s\/([^/]+)\/dupes$/))) return '/s/' + m[1] + '/review';
+    if (/^#\/s\/[^/]+(\/review)?$/.test(h)) return '/statements';
+    if (h === '#/' || h === '#' || h === '') return null;
+    return '/';
+  }
+  if (K.nat && K.nat.on) {
+    var lastBack = 0;
+    K.nat.onBack(function () {
+      if (document.querySelector('.scanner')) return;
+      var ed = document.querySelector('.editor .editor-top .btn-icon');
+      if (ed) { ed.click(); return; }
+      if (K.closeTopSheet()) return;
+      var parent = S.user ? parentRoute(location.hash) : null;
+      if (parent) { K.go(parent); return; }
+      if (Date.now() - lastBack < 1800) { K.nat.exit(); return; }
+      lastBack = Date.now();
+      K.toast('اضغط رجوع مرة ثانية للخروج', 'info', 1800);
+    });
   }
 
   function offlineMode() {
@@ -1914,6 +1946,8 @@
   function boot() {
     K.setTheme(K.getTheme());
     K.registerSW();
+    if (K.nat && K.nat.on) K.nat.hideSplash();
+    if (K.remote && !K.serverUrl()) { viewServerSetup(); return; }
     K.api.get('me').then(function (r) {
       S.app = r.app;
       S.user = r.user;

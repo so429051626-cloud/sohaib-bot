@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MADIX Convert</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1220; color: #e9eef6; font-family: "IBM Plex Sans Arabic", Tahoma, sans-serif; }
+  body { display: grid; place-items: center; text-align: center; padding: 24px; box-sizing: border-box;
+    background: radial-gradient(60% 45% at 50% 38%, rgba(16,185,129,.22), transparent 70%), #0b1220; }
+  img { width: 96px; height: 96px; border-radius: 26px; box-shadow: 0 18px 50px rgba(16,185,129,.3); }
+  h1 { font-size: 22px; margin: 22px 0 6px; font-weight: 700; }
+  p { color: #9fb0c6; margin: 0 0 26px; }
+  button { height: 52px; padding: 0 34px; border: 0; border-radius: 16px; color: #fff; font: inherit; font-weight: 600; font-size: 16px;
+    background: linear-gradient(145deg, #10b981, #047857); box-shadow: 0 10px 26px rgba(5,150,105,.4); }
+  button:active { transform: scale(.97); }
+  .foot { position: fixed; bottom: 22px; left: 0; right: 0; font-family: monospace; letter-spacing: .25em; font-size: 12px; color: #6b7c95; direction: ltr; }
+</style>
+</head>
+<body>
+  <div>
+    <img src="assets/img/icon-512.png" alt="">
+    <h1>ما في اتصال</h1>
+    <p>تأكد من الإنترنت وحاول مرة ثانية</p>
+    <button type="button" id="retry">إعادة المحاولة</button>
+  </div>
+  <div class="foot">Py | Sohaib</div>
+  <script>
+    document.getElementById('retry').addEventListener('click', function () { location.href = 'index.html'; });
+  </script>
+</body>
+</html>

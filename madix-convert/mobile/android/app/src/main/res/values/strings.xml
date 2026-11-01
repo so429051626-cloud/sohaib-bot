@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MADIX Convert</string>
+    <string name="title_activity_main">MADIX Convert</string>
+    <string name="package_name">com.madix.convert</string>
+    <string name="custom_url_scheme">com.madix.convert</string>
+</resources>

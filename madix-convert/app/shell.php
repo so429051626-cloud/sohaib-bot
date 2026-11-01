@@ -75,6 +75,74 @@ function render_shell(string $kind): void
 <?php
 }
 
+/** صفحة تحميل التطبيق */
+function render_landing(): void
+{
+    send_security_headers(true);
+    header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-cache');
+    $v = asset_version();
+    $iv = rawurlencode(setting('icon_version', '0'));
+    $name = app_name();
+    $tagline = setting('tagline', 'حوّل الكشوفات المكتوبة بخط اليد لجدول إكسل خلال ثواني');
+    $apk = apk_file();
+    $size = $apk !== '' ? number_format(filesize($apk) / 1048576, 1) . ' MB' : '';
+    $ver = setting('apk_version', '');
+    $web = setting('web_app', '0') === '1';
+    $footer = setting('footer_text', 'MADIX Convert — محوّل الكشوفات الذكي');
+    ?>
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title><?= h($name) ?></title>
+<meta name="description" content="<?= h($tagline) ?>">
+<meta name="theme-color" content="#0b1220">
+<link rel="icon" type="image/png" sizes="192x192" href="index.php?asset=icon&amp;s=192&amp;v=<?= $iv ?>">
+<link rel="apple-touch-icon" href="index.php?asset=icon&amp;s=180&amp;v=<?= $iv ?>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&amp;display=swap">
+<link rel="stylesheet" href="assets/css/app.css?v=<?= h($v) ?>">
+<script src="assets/js/boot.js?v=<?= h($v) ?>"></script>
+</head>
+<body class="landing">
+<div class="auth">
+  <div class="auth-hero land-hero">
+    <div class="auth-hero-in">
+      <img src="index.php?asset=icon&amp;s=512&amp;v=<?= $iv ?>" alt="" width="96" height="96">
+      <h1><?= wordmark_html($name) ?></h1>
+      <p><?= h($tagline) ?></p>
+      <div class="auth-feats">
+        <div class="auth-feat"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>قراءة خط اليد</div>
+        <div class="auth-feat"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2"/><path d="M6 16a3 3 0 0 1 6 0M14 10h4M14 14h4"/></svg>المكررات برقم الهوية</div>
+        <div class="auth-feat"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Excel و PDF</div>
+      </div>
+    </div>
+  </div>
+  <div class="auth-card stack lg land-card">
+<?php if ($apk !== ''): ?>
+    <a class="btn btn-primary btn-block btn-lg" href="index.php?download=apk" download>
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+      تحميل التطبيق لأندرويد
+    </a>
+    <div class="land-meta"><?= h(trim(($ver !== '' ? 'الإصدار ' . $ver . ' • ' : '') . $size)) ?></div>
+<?php else: ?>
+    <button class="btn btn-block btn-lg" type="button" disabled>التطبيق قريباً</button>
+<?php endif; ?>
+<?php if ($web): ?>
+    <a class="btn btn-block" href="index.php?web=1">فتح نسخة الويب</a>
+<?php endif; ?>
+    <a class="btn btn-ghost btn-sm land-admin" href="admin.php">لوحة الإدارة</a>
+  </div>
+  <footer class="footer"><div class="f-main"><?= h($footer) ?> © <?= gmdate('Y') ?></div><div class="f-sign">Py | Sohaib</div></footer>
+</div>
+</body>
+</html>
+<?php
+}
+
 function render_manifest(): void
 {
     header('Content-Type: application/manifest+json; charset=utf-8');

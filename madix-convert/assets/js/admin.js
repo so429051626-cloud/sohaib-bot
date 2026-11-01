@@ -19,6 +19,7 @@
   var EFFORTS = [['low', 'منخفض (أسرع وأرخص)'], ['medium', 'متوسط (منصوح)'], ['high', 'عالي (أدق للخط الصعب)'], ['xhigh', 'عالي جداً'], ['max', 'أقصى']];
   var NAV = [
     ['overview', 'نظرة عامة', 'chart'],
+    ['android', 'تطبيق أندرويد', 'install'],
     ['models', 'نماذج الذكاء', 'cpu'],
     ['keys', 'مفاتيح API', 'key'],
     ['codes', 'الأكواد والكروت', 'ticket'],
@@ -31,10 +32,11 @@
   function money(v) { return Number(v || 0).toLocaleString('en-US', { maximumFractionDigits: 2 }); }
   function usd(v) { return '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }); }
   function render(node) { K.closeAllSheets(); K.swap(root, node); }
-  function field(label, input, hint) { return el('div', { class: 'field' }, el('label', { text: label }), input, hint ? el('div', { class: 'hint', text: hint }) : null); }
+  function field(label, input) { return el('div', { class: 'field' }, el('label', { text: label }), input); }
   function sw(label, checked, sub) {
     var i = el('input', { type: 'checkbox', checked: !!checked });
-    return { input: i, node: el('label', { class: 'switch' }, el('div', {}, el('b', { class: 'small', text: label }), sub ? el('div', { class: 'tiny muted', text: sub }) : null), i, el('span', { class: 'track' })) };
+    void sub;
+    return { input: i, node: el('label', { class: 'switch' }, el('b', { class: 'small', text: label }), i, el('span', { class: 'track' })) };
   }
   function selectOf(opts, val) {
     var s = el('select', { class: 'select' });
@@ -90,7 +92,6 @@
     var pw = K.passwordInput({ autocomplete: 'new-password', placeholder: '6 أحرف أو أكثر' });
     var btn = el('button', { class: 'btn btn-primary btn-block btn-lg', type: 'submit' }, ic('check'), 'إنشاء حساب المدير');
     var form = el('form', { class: 'stack' },
-      el('div', { class: 'notice green' }, ic('sparkles'), el('div', { class: 'small', text: 'أهلاً! هذا أول تشغيل. أنشئ حساب المدير — بتستخدمه للدخول للوحة الإدارة وللتطبيق كمان.' })),
       field('الاسم', name), field('رقم الجوال (للدخول)', phone), field('كلمة السر', pw.node), err, btn);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -134,8 +135,8 @@
     K.api.get('stats').then(function (s) {
       K.clear(box);
       var cur = s.currency || '₪';
-      if (s.mock) box.appendChild(el('div', { class: 'notice amber', style: { 'margin-bottom': '14px' } }, ic('alert'), el('div', { text: 'وضع التجربة مفعّل على السيرفر (MADIX_MOCK_AI=1) — القراءة ترجع بيانات تجريبية.' })));
-      if (!s.ai_ready) box.appendChild(el('button', { class: 'notice amber', type: 'button', style: { width: '100%', border: '0', 'margin-bottom': '14px', 'text-align': 'start', cursor: 'pointer' }, on: { click: function () { K.go('/keys'); } } }, ic('key'), el('div', { class: 'grow' }, el('b', { text: 'خدمة القراءة غير مفعّلة' }), el('div', { class: 'small', text: 'أضف مفتاح API من صفحة "مفاتيح API" حتى يشتغل التطبيق.' })), ic('chevl')));
+      if (s.mock) box.appendChild(el('div', { class: 'notice amber', style: { 'margin-bottom': '14px' } }, ic('alert'), el('div', { text: 'وضع التجربة مفعّل (MADIX_MOCK_AI)' })));
+      if (!s.ai_ready) box.appendChild(el('button', { class: 'notice amber', type: 'button', style: { width: '100%', border: '0', 'margin-bottom': '14px', 'text-align': 'start', cursor: 'pointer' }, on: { click: function () { K.go('/keys'); } } }, ic('key'), el('div', { class: 'grow' }, el('b', { text: 'خدمة القراءة غير مفعّلة — أضف مفتاح API' })), ic('chevl')));
       function kpi(icon, k, v, sub) { return el('div', { class: 'kpi' }, el('div', { class: 'k' }, ic(icon), k), el('div', { class: 'v', text: v }), sub ? el('div', { class: 's', text: sub }) : null); }
       box.appendChild(el('div', { class: 'kpis' },
         kpi('users', 'المستخدمين', K.num(s.users.total), '+' + s.users.today + ' آخر 24 ساعة'),
@@ -175,7 +176,6 @@
       el('button', { class: 'btn btn-primary btn-sm', type: 'button', on: { click: function () { modelForm(null); } } }, ic('plus'), 'إضافة نموذج')));
     K.api.get('models').then(function (r) {
       K.clear(box);
-      box.appendChild(el('div', { class: 'notice', style: { 'margin-bottom': '14px' } }, ic('info'), el('div', { class: 'small', text: 'إذا في أكثر من نموذج مفعّل، المستخدم بيختار "دقة القراءة" قبل ما يقرأ. "تكلفة الصفحة" = كم صفحة بتنخصم من رصيده. الأسعار بالدولار لكل مليون توكن (لحساب تكلفتك).' })));
       var grid = el('div', { class: 'grid-2' });
       r.items.forEach(function (m) {
         grid.appendChild(el('div', { class: 'card model-card' },
@@ -274,12 +274,9 @@
       el('button', { class: 'btn btn-primary btn-sm', type: 'button', on: { click: function () { keyForm(null); } } }, ic('plus'), 'إضافة مفتاح')));
     K.api.get('keys').then(function (r) {
       K.clear(box);
-      box.appendChild(el('div', { class: 'notice', style: { 'margin-bottom': '14px' } }, ic('info'), el('div', { class: 'small' },
-        el('div', { text: 'أنشئ مفتاح من console.anthropic.com ← API Keys، وانسخه هون. المفاتيح بتنحفظ مشفّرة.' }),
-        el('div', { text: 'إذا أضفت أكثر من مفتاح: التطبيق بيستخدمهم بالترتيب، ولو واحد فشل أو خلص رصيده بينتقل للي بعده تلقائياً.' }))));
-      if (r.env_key) box.appendChild(el('div', { class: 'notice green', style: { 'margin-bottom': '14px' } }, ic('check'), el('div', { class: 'small', text: 'في مفتاح معرّف بمتغير البيئة ANTHROPIC_API_KEY على السيرفر — بينستخدم أولاً.' })));
+      if (r.env_key) box.appendChild(el('div', { class: 'notice green', style: { 'margin-bottom': '14px' } }, ic('check'), el('div', { class: 'small', text: 'ANTHROPIC_API_KEY ✓' })));
       if (!r.items.length && !r.env_key) {
-        box.appendChild(el('div', { class: 'empty' }, ic('key'), el('h3', { text: 'ما في مفاتيح' }), el('p', { text: 'أضف مفتاح API حتى يقدر التطبيق يقرأ الكشوفات' }), el('button', { class: 'btn btn-primary', type: 'button', style: { 'margin-top': '14px' }, on: { click: function () { keyForm(null); } } }, ic('plus'), 'إضافة مفتاح')));
+        box.appendChild(el('div', { class: 'empty' }, ic('key'), el('h3', { text: 'ما في مفاتيح' }),  el('button', { class: 'btn btn-primary', type: 'button', style: { 'margin-top': '14px' }, on: { click: function () { keyForm(null); } } }, ic('plus'), 'إضافة مفتاح')));
         return;
       }
       var list = el('div', { class: 'stack' });
@@ -440,7 +437,7 @@
       title: 'تم توليد ' + r.codes.length + ' كود ✓',
       wide: true,
       body: el('div', { class: 'stack' },
-        el('div', { class: 'row wrap' }, el('span', { class: 'badge green', text: r.pages + ' صفحة بكل كود' }), el('span', { class: 'badge', text: money(r.price) + ' ' + cur }), el('span', { class: 'badge blue', text: r.batch })),
+        el('div', { class: 'row wrap' }, el('span', { class: 'badge green', text: r.pages + ' صفحة' }), el('span', { class: 'badge', text: money(r.price) + ' ' + cur }), el('span', { class: 'badge blue', text: r.batch })),
         el('div', { class: 'code-list' }, r.codes.map(function (c) { return el('div', { class: 'code-pill', text: c }); }))),
       actions: [
         { label: 'نسخ الكل', icon: 'copy', onClick: function () { K.copy(r.codes.join('\n')); return true; } },
@@ -607,7 +604,8 @@
       max_image_mb: el('input', { class: 'input ltr', type: 'number', min: '1', max: '20', value: s.max_image_mb })
     };
     var reg = sw('السماح بالتسجيل', s.allow_register === '1', 'إذا سكّرته، بس المدير بيقدر يضيف حسابات');
-    var maint = sw('وضع الصيانة', s.maintenance === '1', 'بيوقف القراءة لكل المستخدمين (إلا المدير)');
+    var maint = sw('وضع الصيانة', s.maintenance === '1');
+    var webApp = sw('نسخة الويب للمستخدمين (للآيفون)', s.web_app === '1');
     var save = el('button', { class: 'btn btn-primary btn-lg', type: 'submit' }, ic('check'), 'حفظ الإعدادات');
     var form = el('form', { class: 'stack lg' },
       el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('sparkles'), 'هوية التطبيق'),
@@ -624,7 +622,7 @@
       el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('shield'), 'التشغيل'),
         field('إعلان للمستخدمين', f.announcement),
         field('أقصى حجم صورة (ميجا)', f.max_image_mb),
-        el('div', {}, reg.node, maint.node)),
+        el('div', {}, reg.node, maint.node, webApp.node)),
       save);
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -632,6 +630,7 @@
       Object.keys(f).forEach(function (k) { body[k] = f[k].value; });
       body.allow_register = reg.input.checked;
       body.maintenance = maint.input.checked;
+      body.web_app = webApp.input.checked;
       K.busy(save, true);
       K.api.post('settings_save', body).then(function () {
         K.toast('تم حفظ الإعدادات ✓', 'success');
@@ -665,10 +664,59 @@
     var iconCard = el('div', { class: 'card stack' }, el('div', { class: 'card-title' }, ic('image'), 'أيقونة التطبيق'),
       el('div', { class: 'row wrap', style: { gap: '18px' } }, preview,
         el('div', { class: 'stack grow' },
-          el('p', { class: 'small muted', text: 'صورة مربعة 512×512 أو أكبر (PNG أفضل). بتظهر بشاشة البداية، وعلى شاشة الجوال لما يثبت التطبيق، وعلى الكروت المطبوعة.' }),
           el('div', { class: 'row wrap' }, up, r.has_custom_icon ? resetBtn : null))), file);
 
     K.clear(box).appendChild(el('div', { class: 'stack lg' }, iconCard, form));
+  }
+
+  // ---------- تطبيق أندرويد ----------
+  function viewAndroid() {
+    var box = el('div', {}, loading());
+    render(shell('android', 'تطبيق أندرويد', null, box));
+    function load() {
+      K.api.get('app_info').then(function (r) {
+        K.clear(box);
+        var file = el('input', { type: 'file', accept: '.apk,application/vnd.android.package-archive', hidden: true });
+        var ver = el('input', { class: 'input ltr', placeholder: '1.0.0', value: r.version || '' });
+        var up = el('button', { class: 'btn btn-primary', type: 'button', on: { click: function () { file.click(); } } }, ic('upload'), r.apk ? 'رفع نسخة جديدة' : 'رفع ملف APK');
+        file.addEventListener('change', function () {
+          var f = file.files && file.files[0];
+          file.value = '';
+          if (!f) return;
+          var fd = new FormData();
+          fd.append('apk', f);
+          fd.append('version', ver.value.trim());
+          K.busy(up, true, ' 0%');
+          K.api.upload('apk_upload', fd, function (p, phase) {
+            if (phase === 'up') { K.clear(up).appendChild(el('span', { class: 'spin' })); up.appendChild(document.createTextNode(' ' + Math.round(p * 100) + '%')); }
+          }).then(function () { K.toast('تم رفع التطبيق ✓', 'success'); load(); }).catch(function (e) { K.toast(e.message, 'error'); K.busy(up, false); });
+        });
+        function linkRow(label, url) {
+          return el('div', { class: 'field' }, el('label', { text: label }),
+            el('div', { class: 'row' }, el('input', { class: 'input ltr mono', value: url, readOnly: true, style: { 'font-size': '13px' } }),
+              el('button', { class: 'btn btn-icon', type: 'button', 'aria-label': 'نسخ', on: { click: function () { K.copy(url); } } }, ic('copy'))));
+        }
+        box.appendChild(el('div', { class: 'stack lg' },
+          el('div', { class: 'card stack' },
+            el('div', { class: 'row' },
+              el('img', { src: iconUrl(192), alt: '', style: { width: '58px', height: '58px', 'border-radius': '16px' } }),
+              el('div', { class: 'grow' }, el('b', { style: { 'font-size': '17px' }, text: (S.app && S.app.name) || 'MADIX Convert' }),
+                el('div', { class: 'small muted', text: r.apk ? ((r.version ? 'الإصدار ' + r.version + ' • ' : '') + (r.size / 1048576).toFixed(1) + ' MB • ' + K.fmtDate(r.updated)) : 'ما في ملف تطبيق مرفوع' })),
+              el('span', { class: 'badge ' + (r.apk ? 'green' : 'amber'), text: r.apk ? 'جاهز للتحميل' : 'غير متوفر' })),
+            el('div', { class: 'form-grid' }, field('رقم الإصدار', ver), el('div', { class: 'field' }, el('label', { text: ' ' }), el('div', { class: 'row wrap' }, up,
+              r.apk ? el('a', { class: 'btn', href: r.download_url }, ic('download'), 'تحميل') : null,
+              r.uploaded ? el('button', { class: 'btn btn-danger btn-icon', type: 'button', 'aria-label': 'حذف', on: { click: function () {
+                K.confirm('حذف ملف التطبيق المرفوع؟', { danger: true, ok: 'حذف' }).then(function (ok) { if (ok) K.api.post('apk_delete', {}).then(load).catch(function (e) { K.toast(e.message, 'error'); }); });
+              } } }, ic('trash')) : null))),
+            file),
+          el('div', { class: 'card stack' },
+            el('div', { class: 'card-title' }, ic('link'), 'الروابط'),
+            linkRow('رابط تحميل التطبيق', r.download_url),
+            linkRow('صفحة التحميل', r.landing_url),
+            linkRow('رابط السيرفر (للتطبيق)', r.server_url))));
+      }).catch(function (e) { K.clear(box).appendChild(errBox(e)); });
+    }
+    load();
   }
 
   // ---------- السجلات ----------
@@ -730,6 +778,7 @@
   K.route('/users', guard(viewUsers));
   K.route('/settings', guard(viewSettings));
   K.route('/logs', guard(viewLogs));
+  K.route('/android', guard(viewAndroid));
 
   K.api.onAuthLost = function () { S.user = null; viewLogin('انتهت الجلسة، ادخل مرة ثانية'); };
 

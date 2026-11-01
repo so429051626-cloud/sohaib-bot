@@ -10,7 +10,7 @@ if (!defined('MADIX')) {
     exit;
 }
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 function migrate(PDO $pdo): void
 {
@@ -140,8 +140,23 @@ function migrate(PDO $pdo): void
         )');
         $pdo->exec('CREATE INDEX IF NOT EXISTS idx_rate_hits ON rate_hits (k, t)');
 
+        $pdo->exec('CREATE TABLE IF NOT EXISTS tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT NOT NULL UNIQUE,
+            sv INTEGER NOT NULL DEFAULT 0,
+            device TEXT NOT NULL DEFAULT \'\',
+            created_at TEXT NOT NULL,
+            last_used_at TEXT
+        )');
+        $pdo->exec('CREATE INDEX IF NOT EXISTS idx_tokens_user ON tokens (user_id)');
+
         if ($ver === 0) {
             seed_defaults($pdo);
+        }
+        $st2 = $pdo->prepare('INSERT OR IGNORE INTO settings (k, v, updated_at) VALUES (?, ?, ?)');
+        foreach (array('web_app' => '0', 'apk_version' => '') as $k2 => $v2) {
+            $st2->execute(array($k2, $v2, gmdate('Y-m-d H:i:s')));
         }
 
         $st = $pdo->prepare('INSERT OR REPLACE INTO settings (k, v, updated_at) VALUES (?, ?, ?)');

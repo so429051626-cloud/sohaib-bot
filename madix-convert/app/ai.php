@@ -228,6 +228,9 @@ function ai_call(array $body, bool $useFallbacks): array
     }
 
     $lastMessage = 'تعذّر الاتصال بخدمة الذكاء الاصطناعي';
+    $started = time();
+    $met = (int)ini_get('max_execution_time');
+    $budget = $met > 0 ? max(25, $met - 6) : 280;
     foreach ($keys as $key) {
         $withFallbacks = $useFallbacks;
         for ($attempt = 1; $attempt <= 3; $attempt++) {
@@ -241,7 +244,11 @@ function ai_call(array $body, bool $useFallbacks): array
                 $payload['fallbacks'] = 'default';
                 $headers[] = 'anthropic-beta: ' . FALLBACK_BETA;
             }
-            $r = http_post_json(api_url(), $payload, $headers, 240);
+            $left = $budget - (time() - $started);
+            if ($left < 15) {
+                break 2;
+            }
+            $r = http_post_json(api_url(), $payload, $headers, min(240, $left));
 
             if ($r['error'] !== '') {
                 $lastMessage = 'انقطع الاتصال بخدمة الذكاء الاصطناعي، حاول مرة ثانية';

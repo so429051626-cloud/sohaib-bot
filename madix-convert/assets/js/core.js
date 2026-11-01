@@ -255,6 +255,13 @@
     return ctl;
   };
   K.closeAllSheets = function () { openSheets.slice().forEach(function (s) { s.close(); }); };
+  /** يسكّر آخر نافذة مفتوحة (لزر الرجوع بالجوال) — يرجع true إذا سكّر شي */
+  K.closeTopSheet = function () {
+    var s = openSheets[openSheets.length - 1];
+    if (!s) return false;
+    s.close();
+    return true;
+  };
 
   K.confirm = function (message, opts) {
     opts = opts || {};
@@ -311,19 +318,67 @@
   };
 
   // ---------- الاتصال بالسيرفر ----------
+  // داخل تطبيق الجوال السيرفر بعيد (MADIX_CONFIG) والدخول بتوكن؛ بالمتصفح نفس الموقع بجلسة
+  var CFG = window.MADIX_CONFIG || null;
+  K.remote = !!CFG;
+  K.cleanServer = function (u) {
+    u = String(u || '').trim().replace(/\s+/g, '');
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    return u.replace(/\/(index|admin)\.php.*$/i, '').replace(/[?#].*$/, '').replace(/\/+$/, '');
+  };
+  K.serverUrl = function () { return K.cleanServer(K.pref.get('server', '') || (CFG && CFG.server) || ''); };
+  K.fixedServer = function () { return !!(CFG && CFG.server); };
+  K.setServer = function (u) {
+    var url = K.cleanServer(u);
+    if (!url) return Promise.reject(new Error('اكتب رابط السيرفر'));
+    var get = function () {
+      return fetch(url + '/index.php?api=me', { headers: { Accept: 'application/json', 'X-Client': 'app' }, cache: 'no-store', credentials: 'omit' })
+        .then(function (r) { return r.text(); }, function () { throw new Error('ما قدرنا نوصل للسيرفر'); });
+    };
+    return get().then(function (txt) {
+      if (K.nat && K.nat.on && K.nat.isChallenge(txt)) return K.nat.solveChallenge(txt, url).then(get);
+      return txt;
+    }).then(function (txt) { try { return JSON.parse(txt); } catch (x) { return null; } })
+      .then(function (d) {
+        if (!d || !d.app) throw new Error('الرابط غير صحيح');
+        K.pref.set('server', url);
+        return d;
+      }, function (e) { throw e.message ? e : new Error('الرابط غير صحيح'); });
+  };
   var api = {
     base: document.body && document.body.classList.contains('is-admin') ? 'admin.php' : 'index.php',
     csrf: '',
     onAuthLost: null
   };
+  function endpoint(action) {
+    return (K.remote ? K.serverUrl() + '/index.php' : api.base) + '?api=' + encodeURIComponent(action);
+  }
+  function authHeaders(h) {
+    h = h || {};
+    h.Accept = 'application/json';
+    if (K.remote) {
+      h['X-Client'] = 'app';
+      var t = K.pref.get('token', '');
+      if (t) h['X-Auth-Token'] = t;
+    } else if (api.csrf) {
+      h['X-CSRF-Token'] = api.csrf;
+    }
+    return h;
+  }
+  api.setToken = function (t) { K.pref.set('token', t || ''); };
   function apiError(msg, status, data) {
     var e = new Error(msg || 'حدث خطأ');
     e.status = status || 0;
     e.data = data || {};
     return e;
   }
+  function isChallenge(txt) { return K.remote && K.nat && K.nat.on && K.nat.isChallenge(txt); }
+  function challengeError(txt) { var e = apiError('challenge', 0); e.challenge = txt; return e; }
+  function solve(e) { return K.nat.solveChallenge(e.challenge, K.serverUrl()); }
   function parseResponse(res) {
     return res.text().then(function (txt) {
+      if (isChallenge(txt)) throw challengeError(txt);
       var data = null;
       try { data = JSON.parse(txt); } catch (e) { data = null; }
       if (!data) throw apiError(res.status >= 500 ? 'السيرفر ما رد بشكل صحيح (' + res.status + ')' : 'رد غير متوقع من السيرفر', res.status);
@@ -332,6 +387,7 @@
         throw apiError(data.error || 'حدث خطأ', res.status, data);
       }
       if (data.csrf) api.csrf = data.csrf;
+      if (data.token) api.setToken(data.token);
       return data;
     });
   }
@@ -342,15 +398,19 @@
       qs = Object.keys(params).filter(function (k) { return params[k] !== undefined && params[k] !== null && params[k] !== ''; })
         .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]); }).join('&');
     }
-    return fetch(api.base + '?api=' + encodeURIComponent(action) + (qs ? '&' + qs : ''), { credentials: 'same-origin', headers: { Accept: 'application/json' }, cache: 'no-store' })
-      .then(parseResponse, function () { throw netError(); });
+    var go = function () {
+      return fetch(endpoint(action) + (qs ? '&' + qs : ''), { credentials: K.remote ? 'omit' : 'same-origin', headers: authHeaders(), cache: 'no-store' })
+        .then(parseResponse, function () { throw netError(); });
+    };
+    return go().catch(function (e) { if (e.challenge) return solve(e).then(go); throw e; });
   };
   api.post = function (action, body, retried) {
-    return fetch(api.base + '?api=' + encodeURIComponent(action), {
-      method: 'POST', credentials: 'same-origin', cache: 'no-store',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-Token': api.csrf },
+    return fetch(endpoint(action), {
+      method: 'POST', credentials: K.remote ? 'omit' : 'same-origin', cache: 'no-store',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body || {})
     }).then(parseResponse, function () { throw netError(); }).catch(function (e) {
+      if (e.challenge && !retried) return solve(e).then(function () { return api.post(action, body, true); });
       if (e.status === 419 && !retried) {
         return api.get('me').then(function () { return api.post(action, body, true); });
       }
@@ -361,16 +421,19 @@
   api.upload = function (action, form, onProgress, retried) {
     return new Promise(function (resolve, reject) {
       var xhr = new XMLHttpRequest();
-      xhr.open('POST', api.base + '?api=' + encodeURIComponent(action));
-      xhr.setRequestHeader('X-CSRF-Token', api.csrf);
-      xhr.setRequestHeader('Accept', 'application/json');
-      xhr.withCredentials = true;
+      xhr.open('POST', endpoint(action));
+      var hs = authHeaders();
+      Object.keys(hs).forEach(function (k) { xhr.setRequestHeader(k, hs[k]); });
+      xhr.withCredentials = !K.remote;
       xhr.timeout = 0;
       if (xhr.upload && onProgress) {
         xhr.upload.onprogress = function (e) { if (e.lengthComputable) onProgress(e.loaded / e.total, 'up'); };
         xhr.upload.onload = function () { onProgress(1, 'wait'); };
       }
       xhr.onload = function () {
+        if (isChallenge(xhr.responseText) && !retried) {
+          return solve(challengeError(xhr.responseText)).then(function () { return api.upload(action, form, onProgress, true); }).then(resolve, reject);
+        }
         var data = null;
         try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
         if (!data) return reject(apiError(xhr.status === 413 ? 'حجم الصورة أكبر من المسموح على السيرفر' : 'رد غير متوقع من السيرفر (' + xhr.status + ')', xhr.status));
@@ -452,6 +515,7 @@
     try { localStorage.setItem('madix.theme', t); } catch (e) { /* */ }
     document.documentElement.setAttribute('data-theme', t);
     var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    if (K.nat && K.nat.on) K.nat.statusBar(dark);
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', dark ? '#090e19' : '#f4f2ec');
   };
@@ -530,6 +594,13 @@
     return { input: input, node: el('div', { class: 'input-wrap' }, K.icon('lock'), input, tbtn) };
   };
 
+  /** تسليم ملف: بالتطبيق قائمة المشاركة/الحفظ، وبالمتصفح تنزيل */
+  K.deliver = function (blob, name) {
+    if (K.nat && K.nat.on) return K.nat.share(blob, name);
+    K.downloadBlob(blob, name);
+    return Promise.resolve();
+  };
+
   K.downloadBlob = function (blob, name) {
     var url = URL.createObjectURL(blob);
     var a = el('a', { href: url, download: name });
@@ -541,6 +612,7 @@
   /** نسخ للحافظة؛ msg رسالة النجاح (افتراضياً "تم النسخ") */
   K.copy = function (text, msg) {
     var ok = function () { K.toast(msg || 'تم النسخ ✓', 'success'); };
+    if (K.nat && K.nat.on) return K.nat.copy(text).then(ok, function () { K.toast('ما قدرنا ننسخ', 'error'); });
     if (navigator.clipboard && window.isSecureContext) {
       return navigator.clipboard.writeText(text).then(ok, function () { fallback(); });
     }
@@ -557,7 +629,7 @@
   };
 
   K.registerSW = function () {
-    if (!('serviceWorker' in navigator) || location.protocol === 'file:') return;
+    if (!('serviceWorker' in navigator) || location.protocol === 'file:' || K.remote || (K.nat && K.nat.on)) return;
     var v = document.body.getAttribute('data-version') || '1';
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(v)).catch(function () { /* اختياري */ });
