@@ -1,0 +1,109 @@
+name: Build Android App
+
+on:
+  push:
+    branches:
+      - main
+      - "claude/**"
+    paths:
+      - "MadixBeam/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish the APK as a GitHub release"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and assemble
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: MadixBeam
+    env:
+      MADIX_KEYSTORE_BASE64: ${{ secrets.MADIX_KEYSTORE_BASE64 }}
+      MADIX_KEYSTORE_PASSWORD: ${{ secrets.MADIX_KEYSTORE_PASSWORD }}
+      MADIX_KEY_ALIAS: ${{ secrets.MADIX_KEY_ALIAS }}
+      MADIX_KEY_PASSWORD: ${{ secrets.MADIX_KEY_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Restore release signing key
+        if: env.MADIX_KEYSTORE_BASE64 != ''
+        run: |
+          echo "$MADIX_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "MADIX_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+
+      - name: Protocol test suite
+        run: ./gradlew --no-daemon --stacktrace :core:protocol:test
+
+      - name: Assemble APKs
+        run: ./gradlew --no-daemon --stacktrace :app:assembleRelease :app:assembleDebug
+
+      - name: Collect APKs
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/MadixBeam-$VERSION-debug.apk"
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk "dist/MadixBeam-$VERSION.apk"
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk "dist/MadixBeam-$VERSION-unsigned.apk"
+          fi
+          BUILD_TOOLS=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          for apk in dist/*.apk; do
+            echo "== $apk"
+            "$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt2" dump badging "$apk" | grep -E "^(package|sdkVersion|targetSdkVersion|uses-permission)" || true
+            "$ANDROID_HOME/build-tools/$BUILD_TOOLS/zipalign" -c -p 4 "$apk" && echo "zipalign: OK"
+          done
+          ls -la dist
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: MadixBeam-apk
+          path: MadixBeam/dist/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: MadixBeam/core/protocol/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Publish release
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="v$VERSION"
+          NOTES="Madix Beam $VERSION — secure offline file transfer through animated QR codes."
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.apk --clobber
+          else
+            gh release create "$TAG" dist/*.apk --title "Madix Beam $VERSION" --notes "$NOTES" --target "$GITHUB_SHA"
+          fi
