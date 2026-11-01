@@ -1803,7 +1803,7 @@
         mi('lock', 'تغيير كلمة السر', null, changePassword),
         S.installEvt ? mi('install', 'تثبيت التطبيق', 'على شاشة جوالك', doInstall) : null,
         K.remote ? mi('link', 'السيرفر', K.serverUrl().replace(/^https?:\/\//, ''), serverSheet) : null,
-        u.role === 'admin' ? mi('cpu', 'لوحة الإدارة', null, function () { var url = (K.remote ? K.serverUrl() + '/' : '') + 'admin.php'; if (K.remote) window.open(url, '_system'); else location.href = url; }) : null),
+        u.role === 'admin' ? mi('cpu', 'لوحة الإدارة', null, function () { var url = (K.remote ? K.serverUrl() + '/' : '') + 'admin.php'; location.href = url; }) : null),
       el('div', { class: 'menu' },
         mi('trash', 'مسح كل الكشوفات من الجهاز', 'ما بأثر على رصيدك', clearLocal, 'danger'),
         mi('logout', 'تسجيل الخروج', null, logout, 'danger')),

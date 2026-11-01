@@ -7,7 +7,7 @@ on:
     branches: ['**']
     paths:
       - 'madix-convert/mobile/**'
-      - 'madix-convert/assets/img/**'
+      - 'madix-convert/assets/**'
       - '.github/workflows/android.yml'
   workflow_dispatch:
     inputs:
