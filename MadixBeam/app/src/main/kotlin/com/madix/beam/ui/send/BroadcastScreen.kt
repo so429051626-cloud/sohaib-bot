@@ -6,11 +6,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,10 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -48,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
@@ -65,14 +64,12 @@ import com.madix.beam.protocol.frame.SecurityMode
 import com.madix.beam.protocol.session.PrepareStage
 import com.madix.beam.protocol.session.TransferProfile
 import com.madix.beam.ui.components.AuroraBackground
-import com.madix.beam.ui.components.GlassCard
 import com.madix.beam.ui.components.GradientButton
 import com.madix.beam.ui.components.KeepScreenAwake
 import com.madix.beam.ui.components.MadixTopBar
 import com.madix.beam.ui.components.Pill
 import com.madix.beam.ui.components.ProgressRing
 import com.madix.beam.ui.components.SoftButton
-import com.madix.beam.ui.components.StatTile
 import com.madix.beam.ui.theme.Brand
 import com.madix.beam.ui.theme.MadixTheme
 import com.madix.beam.util.Format
@@ -217,57 +214,14 @@ private fun BroadcastContent(viewModel: SendViewModel, onFinish: () -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        broadcast.verificationCode?.let { code ->
-            VerificationCard(code, broadcast.peerName)
-            Spacer(Modifier.height(14.dp))
-        }
-
-        // The QR code always renders black on white for reliable scanning in any theme.
-        Box(
-            Modifier
-                .widthIn(max = 520.dp)
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(30.dp))
-                .background(Brush.sweepGradient(listOf(Brand.Cyan500, Brand.Violet500, Brand.Rose400, Brand.Cyan500)))
-                .padding(4.dp)
-                .clip(RoundedCornerShape(27.dp))
-                .background(Color.White)
-                .padding(14.dp),
-            contentAlignment = Alignment.Center,
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            val frame = broadcast.frame
-            if (frame != null) {
-                Image(
-                    bitmap = frame,
-                    contentDescription = stringResource(R.string.broadcast_qr_description),
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit,
-                    filterQuality = FilterQuality.None,
-                )
-            }
-            if (broadcast.paused) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Color.White.copy(alpha = 0.85f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        stringResource(R.string.broadcast_paused),
-                        color = Brand.Ink,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Pill(
                 stringResource(modeLabel(broadcast.mode)),
                 icon = when (broadcast.mode) {
@@ -278,109 +232,160 @@ private fun BroadcastContent(viewModel: SendViewModel, onFinish: () -> Unit) {
                 color = if (broadcast.mode == SecurityMode.OPEN) MadixTheme.colors.warning else MadixTheme.colors.success,
             )
             Pill(stringResource(profileLabel(broadcast.profile)), icon = Icons.Rounded.Speed)
-        }
-
-        Spacer(Modifier.height(14.dp))
-        GlassCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
-            Row(Modifier.fillMaxWidth()) {
-                StatTile(stringResource(R.string.stat_frames), broadcast.framesShown.toString(), Modifier.weight(1f))
-                StatTile(
-                    stringResource(R.string.stat_pass),
-                    stringResource(R.string.broadcast_pass_value, broadcast.passes + 1, Format.percent(broadcast.passFraction)),
-                    Modifier.weight(1f),
-                )
-                StatTile(stringResource(R.string.stat_elapsed), Format.duration(broadcast.elapsedMillis / 1000), Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.broadcast_frame_rate), style = MaterialTheme.typography.labelLarge)
-                    Text(
-                        stringResource(R.string.broadcast_pass_duration, Format.duration(broadcast.passSeconds)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(onClick = { viewModel.setFps(broadcast.fps - 1) }, enabled = broadcast.fps > TransferProfile.MIN_FPS) {
-                    Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.action_slower))
-                }
+            Spacer(Modifier.weight(1f))
+            broadcast.verificationCode?.let { code ->
                 Text(
-                    stringResource(R.string.broadcast_fps_value, broadcast.fps),
+                    code,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                 )
-                IconButton(onClick = { viewModel.setFps(broadcast.fps + 1) }, enabled = broadcast.fps < TransferProfile.MAX_FPS) {
-                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.action_faster))
-                }
             }
-            Spacer(Modifier.height(4.dp))
+        }
+        broadcast.verificationCode?.let {
             Text(
-                stringResource(
-                    R.string.broadcast_payload_summary,
-                    Format.bytes(context, broadcast.payloadBytes),
-                    Format.bytes(context, broadcast.sealedBytes),
-                ),
-                style = MaterialTheme.typography.bodySmall,
+                if (broadcast.peerName.isNullOrBlank()) {
+                    stringResource(R.string.verification_compare_generic)
+                } else {
+                    stringResource(R.string.verification_compare_named, broadcast.peerName.orEmpty())
+                },
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
+
+        // The codes always render black on white, as large as the screen allows.
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(26.dp))
+                .background(Color.White)
+                .padding(10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            QrStack(broadcast.frames)
+            if (broadcast.paused) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = 0.88f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(stringResource(R.string.broadcast_paused), color = Brand.Ink, style = MaterialTheme.typography.titleLarge)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+        LinearProgressIndicator(
+            progress = { broadcast.passFraction },
+            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            stringResource(
+                R.string.broadcast_status_line,
+                broadcast.passes + 1,
+                Format.duration(broadcast.elapsedMillis / 1000),
+                Format.bytes(context, broadcast.sealedBytes),
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(
             stringResource(R.string.broadcast_hint),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 2.dp, start = 8.dp, end = 8.dp),
         )
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SoftButton(
-                text = stringResource(if (broadcast.paused) R.string.action_resume else R.string.action_pause),
-                icon = if (broadcast.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
-                onClick = viewModel::togglePause,
-                modifier = Modifier.weight(1f),
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            IconButton(onClick = { viewModel.setFps(broadcast.fps - 1) }, enabled = broadcast.fps > TransferProfile.MIN_FPS) {
+                Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.action_slower))
+            }
+            Text(
+                stringResource(R.string.broadcast_fps_value, broadcast.fps),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
             )
+            IconButton(onClick = { viewModel.setFps(broadcast.fps + 1) }, enabled = broadcast.fps < TransferProfile.MAX_FPS) {
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.action_faster))
+            }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = viewModel::togglePause) {
+                Icon(
+                    if (broadcast.paused) Icons.Rounded.PlayArrow else Icons.Rounded.Pause,
+                    contentDescription = stringResource(if (broadcast.paused) R.string.action_resume else R.string.action_pause),
+                )
+            }
+            Spacer(Modifier.width(6.dp))
             GradientButton(
                 text = stringResource(R.string.action_finish),
                 icon = Icons.Rounded.CheckCircle,
                 onClick = onFinish,
-                modifier = Modifier.weight(1f),
             )
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+/**
+ * Lays out the codes of one tick as large as possible. Each code is scaled by a whole number of
+ * pixels per module so that every module has identical, perfectly sharp edges on screen.
+ */
+@Composable
+private fun QrStack(frames: List<ImageBitmap>) {
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        val count = frames.size
+        val modules = frames.firstOrNull()?.width ?: 0
+        if (count > 0 && modules > 0) {
+            val gapPx = with(density) { 14.dp.roundToPx() }
+            val widthPx = constraints.maxWidth
+            val heightPx = constraints.maxHeight
+            val vertical = heightPx >= widthPx
+            val cellPx = if (vertical) {
+                minOf(widthPx, (heightPx - gapPx * (count - 1)) / count)
+            } else {
+                minOf(heightPx, (widthPx - gapPx * (count - 1)) / count)
+            }
+            val scale = maxOf(1, cellPx / modules)
+            val side = with(density) { (modules * scale).toDp() }
+            val gap = with(density) { gapPx.toDp() }
+            val description = stringResource(R.string.broadcast_qr_description)
+            if (vertical) {
+                Column(verticalArrangement = Arrangement.spacedBy(gap), horizontalAlignment = Alignment.CenterHorizontally) {
+                    frames.forEach { code -> QrImage(code, side, description) }
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) {
+                    frames.forEach { code -> QrImage(code, side, description) }
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun VerificationCard(code: String, peerName: String?) {
-    GlassCard(Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.verification_code), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    if (peerName.isNullOrBlank()) {
-                        stringResource(R.string.verification_compare_generic)
-                    } else {
-                        stringResource(R.string.verification_compare_named, peerName)
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Text(
-                code,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            )
-        }
-    }
+private fun QrImage(code: ImageBitmap, side: Dp, description: String) {
+    Image(
+        bitmap = code,
+        contentDescription = description,
+        modifier = Modifier.size(side),
+        contentScale = ContentScale.FillBounds,
+        filterQuality = FilterQuality.None,
+    )
 }
 
 fun modeLabel(mode: SecurityMode): Int = when (mode) {

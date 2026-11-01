@@ -544,6 +544,7 @@ fun qualityLabel(quality: ImageQuality): Int = when (quality) {
     ImageQuality.HIGH -> R.string.quality_high
     ImageQuality.BALANCED -> R.string.quality_balanced
     ImageQuality.COMPACT -> R.string.quality_compact
+    ImageQuality.INSTANT -> R.string.quality_instant
 }
 
 fun failureMessage(failure: SendFailure): Int = when (failure) {

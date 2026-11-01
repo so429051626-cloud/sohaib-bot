@@ -174,13 +174,15 @@ fun CameraPermissionGate(rationale: String, content: @Composable () -> Unit) {
 
 /**
  * Dims the camera image outside a rounded viewfinder and draws glowing corners with a
- * sweeping beam. [centerFraction] positions the viewfinder vertically.
+ * sweeping beam. [centerFraction] positions the viewfinder vertically and [aspect] sets its
+ * width-to-height ratio. The overlay is guidance only; the whole camera image is analysed.
  */
 @Composable
 fun ScannerOverlay(
     modifier: Modifier = Modifier,
     centerFraction: Float = 0.4f,
     sizeFraction: Float = 0.74f,
+    aspect: Float = 1f,
     scanning: Boolean = true,
 ) {
     val transition = rememberInfiniteTransition(label = "scanner")
@@ -191,10 +193,17 @@ fun ScannerOverlay(
         label = "sweep",
     )
     Canvas(modifier.fillMaxSize()) {
-        val side = minOf(size.width, size.height) * sizeFraction
-        val left = (size.width - side) / 2f
-        val top = (size.height * centerFraction - side / 2f).coerceAtLeast(24.dp.toPx())
-        val frame = Rect(left, top, left + side, top + side)
+        var frameWidth = minOf(size.width, size.height) * sizeFraction
+        var frameHeight = frameWidth / aspect
+        val maxHeight = size.height * 0.64f
+        if (frameHeight > maxHeight) {
+            frameHeight = maxHeight
+            frameWidth = frameHeight * aspect
+        }
+        val left = (size.width - frameWidth) / 2f
+        val top = (size.height * centerFraction - frameHeight / 2f).coerceAtLeast(24.dp.toPx())
+        val frame = Rect(left, top, left + frameWidth, top + frameHeight)
+        val side = minOf(frameWidth, frameHeight)
         val radius = 28.dp.toPx()
 
         val dim = Path().apply {

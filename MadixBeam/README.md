@@ -37,16 +37,17 @@ stream of QR codes displayed by the sender and read by the receiver's camera.
 
 ## Speed profiles
 
-| Profile | Payload per frame | Error correction | Default rate | QR version |
-|---|---|---|---|---|
-| Reliable | 320 B | M | 8 fps | 14 |
-| Balanced | 560 B | L | 12 fps | 17 |
-| Fast | 800 B | L | 15 fps | 20 |
-| Turbo | 1,100 B | L | 20 fps | 24 |
+| Profile | Codes on screen | Payload per code | Error correction | Default rate | Nominal throughput |
+|---|---|---|---|---|---|
+| Reliable | 1 | 360 B | M | 10 fps | 3 KB/s |
+| Balanced | 1 | 800 B | L | 15 fps | 11 KB/s |
+| Fast | 2 | 900 B | L | 15 fps | 24 KB/s |
+| Turbo | 2 | 1,100 B | L | 20 fps | 40 KB/s |
 
-The frame rate can be adjusted live during a transmission. Optical transfer is inherently
-slower than radio links; photo optimisation reduces typical photos to a few hundred
-kilobytes before sending.
+The frame rate can be adjusted live during a transmission. The *Instant* photo quality
+re-encodes a typical 3–5 MB photo as a WebP image of roughly 60 KB, which the Turbo profile
+transfers in about two seconds under good conditions. Optical transfer remains far slower than
+radio links: large videos take minutes.
 
 ## Architecture
 

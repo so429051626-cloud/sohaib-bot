@@ -130,7 +130,7 @@ fun ReceiveScanScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            ScannerOverlay(centerFraction = 0.34f, sizeFraction = 0.7f, scanning = scanning)
+            ScannerOverlay(centerFraction = 0.36f, sizeFraction = 0.8f, aspect = 0.62f, scanning = scanning)
         }
 
         Row(

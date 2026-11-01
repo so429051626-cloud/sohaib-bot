@@ -63,7 +63,7 @@ data class SendUiState(
     val security: SecurityMode = SecurityMode.PAIRED,
     val password: String = "",
     val profile: TransferProfile = TransferProfile.DEFAULT,
-    val imageQuality: ImageQuality = ImageQuality.BALANCED,
+    val imageQuality: ImageQuality = ImageQuality.INSTANT,
     val phase: SendPhase = SendPhase.Composing,
     val loadingItems: Boolean = false,
 ) {
@@ -84,7 +84,8 @@ data class SendUiState(
 }
 
 data class BroadcastUi(
-    val frame: ImageBitmap? = null,
+    /** QR codes currently on screen; [TransferProfile.codesPerFrame] entries per tick. */
+    val frames: List<ImageBitmap> = emptyList(),
     val framesShown: Long = 0,
     val passes: Int = 0,
     val passFraction: Float = 0f,
@@ -105,9 +106,10 @@ data class BroadcastUi(
     val passSeconds: Long
         get() {
             if (totalBlocks == 0) return 0
-            val frames = totalBlocks * Protocol.REPAIR_PERIOD / (Protocol.REPAIR_PERIOD - 1.0) /
+            val codes = totalBlocks * Protocol.REPAIR_PERIOD / (Protocol.REPAIR_PERIOD - 1.0) /
                 (1.0 - 1.0 / Protocol.HEADER_INTERVAL)
-            return (frames / fps.coerceAtLeast(1)).toLong() + 1
+            val ticks = codes / profile.codesPerFrame
+            return (ticks / fps.coerceAtLeast(1)).toLong() + 1
         }
 }
 
@@ -312,12 +314,15 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
             profile = profile,
         )
         broadcastJob = viewModelScope.launch(Dispatchers.Default) {
-            val frames = Channel<ImageBitmap>(capacity = 4)
+            val codesPerTick = profile.codesPerFrame
+            val frames = Channel<List<ImageBitmap>>(capacity = 4)
             val producer = launch {
                 try {
                     while (isActive) {
-                        val text = scheduler.nextQrText()
-                        frames.send(QrRenderer.render(text, profile.errorCorrection).asImageBitmap())
+                        val tick = List(codesPerTick) {
+                            QrRenderer.render(scheduler.nextQrText(), profile.errorCorrection).asImageBitmap()
+                        }
+                        frames.send(tick)
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -340,11 +345,11 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
                     val now = SystemClock.elapsedRealtime()
                     activeMillis += now - last
                     last = now
-                    shown++
+                    shown += frame.size
                     val rate = fps.value
                     broadcastState.update {
                         it.copy(
-                            frame = frame,
+                            frames = frame,
                             framesShown = shown,
                             passes = scheduler.passes,
                             passFraction = scheduler.passFraction,

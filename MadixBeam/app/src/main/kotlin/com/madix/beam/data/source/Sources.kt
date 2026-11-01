@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.exifinterface.media.ExifInterface
@@ -95,8 +96,8 @@ class UriTransferSource(
         if (quality != ImageQuality.ORIGINAL && ImageOptimizer.canOptimize(currentMime)) {
             val optimized = runCatching { ImageOptimizer.optimize(context.contentResolver, uri, quality, originalSize) }.getOrNull()
             if (optimized != null) {
-                currentName = currentName.substringBeforeLast('.', currentName) + ".jpg"
-                currentMime = "image/jpeg"
+                currentName = currentName.substringBeforeLast('.', currentName) + ".webp"
+                currentMime = "image/webp"
                 return optimized.inputStream()
             }
         }
@@ -105,10 +106,15 @@ class UriTransferSource(
 }
 
 /**
- * Downscales and re-encodes photos as JPEG. Re-encoding also drops embedded metadata such as
- * the capture location. Returns null when the result would not be smaller than the original.
+ * Downscales and re-encodes photos as lossy WebP, which is markedly smaller than JPEG at equal
+ * visual quality. Re-encoding also drops embedded metadata such as the capture location.
+ * Returns null when the result would not be smaller than the original.
  */
 object ImageOptimizer {
+    @Suppress("DEPRECATION")
+    private fun webpFormat(): Bitmap.CompressFormat =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else Bitmap.CompressFormat.WEBP
+
     private val OPTIMIZABLE = setOf("image/jpeg", "image/jpg", "image/pjpeg", "image/heic", "image/heif", "image/webp")
 
     fun canOptimize(mime: String): Boolean = mime.lowercase() in OPTIMIZABLE
@@ -155,7 +161,7 @@ object ImageOptimizer {
             Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
         }
         val bytes = ByteArrayOutputStream().use { stream ->
-            output.compress(Bitmap.CompressFormat.JPEG, quality.jpegQuality, stream)
+            output.compress(webpFormat(), quality.quality, stream)
             stream.toByteArray()
         }
         if (output !== decoded) output.recycle()

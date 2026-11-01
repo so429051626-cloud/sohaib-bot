@@ -23,12 +23,16 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
-/** Photo re-encoding applied before sending. */
-enum class ImageQuality(val maxDimension: Int, val jpegQuality: Int) {
+/**
+ * Photo re-encoding applied before sending: longest edge in pixels and WebP quality.
+ * Smaller photos transfer proportionally faster through the optical link.
+ */
+enum class ImageQuality(val maxDimension: Int, val quality: Int) {
     ORIGINAL(0, 100),
-    HIGH(2560, 90),
-    BALANCED(1920, 82),
-    COMPACT(1280, 74),
+    HIGH(2560, 86),
+    BALANCED(1920, 78),
+    COMPACT(1440, 70),
+    INSTANT(1080, 62),
 }
 
 data class AppSettings(
@@ -38,7 +42,7 @@ data class AppSettings(
     val secureScreen: Boolean = true,
     val defaultSecurity: SecurityMode = SecurityMode.PAIRED,
     val profile: TransferProfile = TransferProfile.DEFAULT,
-    val imageQuality: ImageQuality = ImageQuality.BALANCED,
+    val imageQuality: ImageQuality = ImageQuality.INSTANT,
     val maxBrightness: Boolean = true,
     val haptics: Boolean = true,
     val deviceName: String = "",
@@ -79,7 +83,7 @@ class SettingsRepository(private val context: Context) {
         secureScreen = p[Keys.SECURE_SCREEN] ?: true,
         defaultSecurity = enumOrDefault(p[Keys.SECURITY], SecurityMode.PAIRED),
         profile = TransferProfile.fromId(p[Keys.PROFILE]),
-        imageQuality = enumOrDefault(p[Keys.IMAGE_QUALITY], ImageQuality.BALANCED),
+        imageQuality = enumOrDefault(p[Keys.IMAGE_QUALITY], ImageQuality.INSTANT),
         maxBrightness = p[Keys.MAX_BRIGHTNESS] ?: true,
         haptics = p[Keys.HAPTICS] ?: true,
         deviceName = p[Keys.DEVICE_NAME] ?: "",

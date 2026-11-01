@@ -37,6 +37,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 /**
  * Live camera preview that decodes QR codes with the on-device ML Kit model.
@@ -89,7 +90,7 @@ fun QrCameraView(
                 val selector = ResolutionSelector.Builder()
                     .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
                     .setResolutionStrategy(
-                        ResolutionStrategy(Size(1600, 1200), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER),
+                        ResolutionStrategy(Size(1920, 1440), ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER),
                     )
                     .build()
                 val analysis = ImageAnalysis.Builder()
@@ -99,6 +100,7 @@ fun QrCameraView(
                 analysis.setAnalyzer(executor, QrAnalyzer(scanner, callbackExecutor) { currentOnCodes(it) })
                 provider.unbindAll()
                 val bound = provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
+                tuneExposureForScreens(bound)
                 camera = bound
                 currentOnReady(bound)
             } catch (e: Exception) {
@@ -151,6 +153,24 @@ fun QrCameraView(
         },
     )
 }
+
+/**
+ * Screens are bright, so automatic exposure tends to wash out the light modules of a QR code.
+ * Lowering the exposure by about one stop keeps module edges crisp when reading a display.
+ */
+private fun tuneExposureForScreens(camera: Camera) {
+    runCatching {
+        val exposure = camera.cameraInfo.exposureState
+        if (!exposure.isExposureCompensationSupported) return
+        val step = exposure.exposureCompensationStep.toFloat()
+        if (step <= 0f) return
+        val range = exposure.exposureCompensationRange
+        val index = (SCREEN_EXPOSURE_EV / step).roundToInt().coerceIn(range.lower, range.upper)
+        camera.cameraControl.setExposureCompensationIndex(index)
+    }
+}
+
+private const val SCREEN_EXPOSURE_EV = -1f
 
 private class QrAnalyzer(
     private val scanner: BarcodeScanner,
