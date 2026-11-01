@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.madix.beam.R
+import com.madix.beam.ui.components.LightSystemBarIcons
 import com.madix.beam.camera.QrCameraView
 import com.madix.beam.ui.components.BannerKind
 import com.madix.beam.ui.components.CameraPermissionGate
@@ -54,6 +55,7 @@ fun SendPairingScreen(viewModel: SendViewModel, onBack: () -> Unit, onPaired: ()
     var torch by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<PairingScanResult?>(null) }
 
+    LightSystemBarIcons()
     LaunchedEffect(Unit) { viewModel.resetPairing() }
 
     LaunchedEffect(state.phase) {

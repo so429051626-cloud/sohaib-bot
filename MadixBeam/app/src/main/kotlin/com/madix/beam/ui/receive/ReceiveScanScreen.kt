@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.madix.beam.R
+import com.madix.beam.ui.components.LightSystemBarIcons
 import com.madix.beam.camera.QrCameraView
 import com.madix.beam.core.AppContainer
 import com.madix.beam.protocol.frame.SecurityMode
@@ -104,6 +105,7 @@ fun ReceiveScanScreen(
     val locked = snapshot.header != null
     val scanning = state.phase == ReceivePhase.Scanning
 
+    LightSystemBarIcons()
     KeepScreenAwake(maxBrightness = false)
 
     LaunchedEffect(locked) {

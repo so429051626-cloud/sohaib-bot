@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.madix.beam.R
+import com.madix.beam.ui.components.LightSystemBarIcons
 import com.madix.beam.core.AppContainer
 import com.madix.beam.ui.components.MadixLogo
 import com.madix.beam.ui.theme.Brand
@@ -69,6 +70,7 @@ fun SplashScreen(container: AppContainer, onFinished: (onboardingDone: Boolean) 
         label = "wave",
     )
 
+    LightSystemBarIcons()
     LaunchedEffect(Unit) {
         launch { logoAlpha.animateTo(1f, tween(450)) }
         logoScale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow))

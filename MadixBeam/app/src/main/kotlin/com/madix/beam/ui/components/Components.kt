@@ -389,11 +389,13 @@ fun MadixLogo(
 
 private val PIXEL_M = listOf("X...X", "XX.XX", "X.X.X", "X...X", "X...X")
 
-internal fun DrawScope.drawMadixGlyph(alpha: Float = 1f) {
-    // Geometry expressed in the 108-unit adaptive icon grid.
-    val unit = size.minDimension / 108f
-    val ox = (size.width - 108f * unit) / 2f
-    val oy = (size.height - 108f * unit) / 2f
+internal fun DrawScope.drawMadixGlyph(alpha: Float = 1f, inset: Float = 18f) {
+    // Geometry is expressed in the 108-unit adaptive icon grid; [inset] crops the grid to the
+    // area that launchers show (18..90 by default), so the mark matches the launcher icon.
+    val span = 108f - 2 * inset
+    val unit = size.minDimension / span
+    val ox = (size.width - span * unit) / 2f - inset * unit
+    val oy = (size.height - span * unit) / 2f - inset * unit
     fun x(v: Float) = ox + v * unit
     fun y(v: Float) = oy + v * unit
     val white = Color.White.copy(alpha = alpha)
