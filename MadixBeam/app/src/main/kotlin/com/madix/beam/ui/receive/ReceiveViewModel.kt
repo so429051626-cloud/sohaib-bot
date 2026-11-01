@@ -28,6 +28,7 @@ import com.madix.beam.protocol.session.ReceiverEngine
 import com.madix.beam.protocol.session.ReceptionSnapshot
 import com.madix.beam.protocol.session.WrongKeyException
 import com.madix.beam.qr.QrRenderer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -118,9 +119,11 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
 
     init {
         viewModelScope.launch(Dispatchers.Default) {
-            val nonce = SecureRandom().nextInt()
-            val text = FrameCodec.toQrText(FrameCodec.encodePairing(PairingRequest(nonce, keys.publicKey, deviceName)))
-            pairingImage.value = QrRenderer.render(text, ErrorCorrection.M).asImageBitmap()
+            runCatching {
+                val nonce = SecureRandom().nextInt()
+                val text = FrameCodec.toQrText(FrameCodec.encodePairing(PairingRequest(nonce, keys.publicKey, deviceName)))
+                pairingImage.value = QrRenderer.render(text, ErrorCorrection.M).asImageBitmap()
+            }
         }
         viewModelScope.launch(engineDispatcher) { consumeCodes() }
     }
@@ -220,14 +223,15 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
         if (openJob?.isActive == true) return
         uiState.update { it.copy(phase = ReceivePhase.Opening(0f)) }
         openJob = viewModelScope.launch(engineDispatcher) {
-            val opener = engine.opener()
-            val header = opener.header
-            val key = try {
-                opener.deriveKey(password)
-            } finally {
-                password?.fill('\u0000')
-            }
+            var key = ByteArray(0)
             try {
+                val opener = engine.opener()
+                val header = opener.header
+                key = try {
+                    opener.deriveKey(password)
+                } finally {
+                    password?.fill('\u0000')
+                }
                 if (!opener.verifyKey(key)) {
                     if (header.mode == SecurityMode.PASSWORD) {
                         uiState.update { it.copy(phase = ReceivePhase.NeedsPassword(wrongAttempt = true)) }
@@ -256,6 +260,8 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
                 runCatching { engine.close() }
                 container.files.incomingWorkDir.listFiles()?.forEach { it.delete() }
                 uiState.update { it.copy(phase = ReceivePhase.Done(result.first)) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: WrongKeyException) {
                 uiState.update { it.copy(phase = ReceivePhase.NeedsPassword(wrongAttempt = true)) }
             } catch (e: InsufficientStorageException) {

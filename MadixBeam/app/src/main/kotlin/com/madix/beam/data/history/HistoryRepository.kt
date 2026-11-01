@@ -89,13 +89,16 @@ class HistoryRepository(context: Context, scope: CoroutineScope) {
         withContext(Dispatchers.IO) {
             mutex.withLock {
                 val updated = transform(state.value)
-                val stream = file.startWrite()
-                try {
-                    stream.write(json.encodeToString(serializer, updated).toByteArray(Charsets.UTF_8))
-                    file.finishWrite(stream)
-                } catch (e: Exception) {
-                    file.failWrite(stream)
-                    throw e
+                // Persistence is best effort: a storage failure must never crash the caller.
+                runCatching {
+                    val stream = file.startWrite()
+                    try {
+                        stream.write(json.encodeToString(serializer, updated).toByteArray(Charsets.UTF_8))
+                        file.finishWrite(stream)
+                    } catch (e: Exception) {
+                        file.failWrite(stream)
+                        throw e
+                    }
                 }
                 state.value = updated
             }
