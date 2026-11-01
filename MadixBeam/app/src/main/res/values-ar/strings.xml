@@ -1,4 +1,351 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="share_target_label">إرسال عبر Madix Beam</string>
+
+    <!-- الإجراءات العامة -->
+    <string name="action_add">إضافة</string>
+    <string name="action_back">رجوع</string>
+    <string name="action_back_to_items">العودة إلى العناصر</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="action_clear">مسح</string>
+    <string name="action_close">إغلاق</string>
+    <string name="action_continue">متابعة</string>
+    <string name="action_copy">نسخ</string>
+    <string name="action_delete">حذف</string>
+    <string name="action_done">تم</string>
+    <string name="action_faster">زيادة معدل الإطارات</string>
+    <string name="action_finish">إنهاء</string>
+    <string name="action_next">التالي</string>
+    <string name="action_ok">حسنًا</string>
+    <string name="action_open">فتح</string>
+    <string name="action_open_link">فتح الرابط</string>
+    <string name="action_pause">إيقاف مؤقت</string>
+    <string name="action_remove">إزالة</string>
+    <string name="action_resume">استئناف</string>
+    <string name="action_save">حفظ على الجهاز</string>
+    <string name="action_save_all">حفظ الكل</string>
+    <string name="action_share">مشاركة</string>
+    <string name="action_share_all">مشاركة الكل</string>
+    <string name="action_skip">تخطٍّ</string>
+    <string name="action_slower">خفض معدل الإطارات</string>
+    <string name="action_stop">إيقاف</string>
+    <string name="action_torch">المصباح</string>
+    <string name="action_view_all">عرض الكل</string>
+    <string name="action_zoom">تكبير</string>
+
+    <!-- شاشة البداية والتعريف -->
+    <string name="splash_tagline">انقل كل شيء عبر الضوء</string>
+    <string name="splash_footer">تشفير تام بين الطرفين · يعمل دون اتصال</string>
+    <string name="onboarding_title_1">النقل عبر الضوء</string>
+    <string name="onboarding_body_1">ينقل Madix Beam الصور ومقاطع الفيديو والمستندات والرسائل بين الأجهزة باستخدام رموز QR متحركة، دون الحاجة إلى اتصال بالإنترنت أو شبكة Wi-Fi أو تقنية Bluetooth.</string>
+    <string name="onboarding_title_2">تشفير تام بين الطرفين</string>
+    <string name="onboarding_body_2">تُحمى كل عملية نقل بمعيار AES-256-GCM، ويُنشئ اقتران الأجهزة مفتاحًا فريدًا لا يعرفه سوى الجهازين المعنيين.</string>
+    <string name="onboarding_title_3">موثوقية في التصميم</string>
+    <string name="onboarding_body_3">يمكن استقبال الإطارات بأي ترتيب، وتُستعاد الإطارات الفائتة تلقائيًا، ويُتحقق من سلامة كل ملف قبل حفظه.</string>
+    <string name="onboarding_start">ابدأ الآن</string>
+
+    <!-- القفل -->
+    <string name="lock_title">التطبيق مقفل</string>
+    <string name="lock_body">يرجى تأكيد هويتك للوصول إلى عمليات النقل.</string>
+    <string name="lock_unlock">فتح القفل</string>
+    <string name="lock_prompt_title">فتح Madix Beam</string>
+    <string name="lock_prompt_subtitle">استخدم البصمة أو قفل شاشة الجهاز</string>
+    <string name="lock_unavailable">لم يُضبط قفل شاشة على هذا الجهاز، لذا عُلّق قفل التطبيق.</string>
+
+    <!-- الرئيسية -->
+    <string name="home_subtitle">نقل آمن للملفات عبر الضوء</string>
+    <string name="home_hero_title">انقل كل شيء عبر الضوء</string>
+    <string name="home_hero_body">دون إنترنت ودون كابلات؛ كل ما يلزم شاشتان وكاميرا.</string>
+    <string name="badge_aes">AES-256</string>
+    <string name="badge_offline">دون اتصال</string>
+    <string name="home_send">إرسال</string>
+    <string name="home_send_hint">عرض الرموز المتحركة</string>
+    <string name="home_receive">استقبال</string>
+    <string name="home_receive_hint">المسح بالكاميرا</string>
+    <string name="home_quick_actions">إجراءات سريعة</string>
+    <string name="quick_media">الوسائط</string>
+    <string name="quick_files">الملفات</string>
+    <string name="quick_text">نص</string>
+    <string name="quick_scan">مسح</string>
+    <string name="stat_transfers">عمليات النقل</string>
+    <string name="stat_data">البيانات المنقولة</string>
+    <string name="stat_files">العناصر</string>
+    <string name="home_recent">أحدث عمليات النقل</string>
+    <string name="home_empty_title">لا توجد عمليات نقل بعد</string>
+    <string name="home_empty_body">ستظهر عمليات النقل المكتملة هنا.</string>
+    <string name="home_privacy_note">تجري جميع العمليات على هذا الجهاز</string>
+    <string name="record_subtitle_sent">مُرسَل · %1$s · %2$s</string>
+    <string name="record_subtitle_received">مُستلَم · %1$s · %2$s</string>
+    <string name="history_untitled">عملية نقل</string>
+
+    <!-- الإرسال -->
+    <string name="send_title">إرسال</string>
+    <string name="add_media">الصور والفيديو</string>
+    <string name="add_files">الملفات</string>
+    <string name="add_text">رسالة نصية</string>
+    <string name="add_clipboard">لصق</string>
+    <string name="send_empty_title">اختر ما تريد إرساله</string>
+    <string name="send_empty_body">أضف صورًا أو مقاطع فيديو أو مستندات أو رسالة نصية، فجميع أنواع الملفات مدعومة.</string>
+    <string name="item_text_message">رسالة نصية · %1$s</string>
+    <string name="item_size_unknown">الحجم غير متاح</string>
+    <string name="send_security">الحماية</string>
+    <string name="security_paired">اقتران الأجهزة</string>
+    <string name="security_paired_body">يعرض الجهاز المستقبِل رمزًا لمرة واحدة، ويُتفق على مفتاح فريد بين الجهازين.</string>
+    <string name="security_recommended">موصى به</string>
+    <string name="security_password">كلمة مرور</string>
+    <string name="security_password_body">يجب إدخال كلمة المرور نفسها على الجهاز المستقبِل لفتح عملية النقل.</string>
+    <string name="security_open">دون تشفير</string>
+    <string name="security_open_body">يمكن لأي جهاز يمسح الرموز قراءة المحتوى، مع استمرار التحقق من السلامة.</string>
+    <string name="password_label">كلمة المرور</string>
+    <string name="password_hint">%1$d أحرف على الأقل، ويُستحسن مشاركتها مع المستلم مباشرة.</string>
+    <string name="password_too_short">يجب ألا تقل كلمة المرور عن %1$d أحرف.</string>
+    <string name="password_show">إظهار كلمة المرور</string>
+    <string name="password_hide">إخفاء كلمة المرور</string>
+    <string name="send_speed">سرعة النقل</string>
+    <string name="profile_reliable">موثوق</string>
+    <string name="profile_balanced">متوازن</string>
+    <string name="profile_fast">سريع</string>
+    <string name="profile_turbo">فائق</string>
+    <string name="profile_reliable_body">رموز أصغر مع تصحيح أخطاء أقوى، تناسب الكاميرات القديمة والإضاءة الصعبة.</string>
+    <string name="profile_balanced_body">التوازن الموصى به بين السرعة وموثوقية المسح.</string>
+    <string name="profile_fast_body">رموز أكثف للأجهزة الحديثة عند تثبيتها على مسافة قريبة.</string>
+    <string name="profile_turbo_body">أقصى كثافة ومعدل إطارات، ويتطلب كاميرا عالية الجودة وثباتًا تامًا.</string>
+    <string name="send_photo_quality">تحسين الصور</string>
+    <string name="quality_original">الأصلية</string>
+    <string name="quality_high">عالية</string>
+    <string name="quality_balanced">متوازنة</string>
+    <string name="quality_compact">مضغوطة</string>
+    <string name="send_photo_quality_note">يُعاد تحجيم الصور المحسّنة وترميزها، مما يختصر مدة النقل ويزيل البيانات الوصفية المضمّنة كالموقع الجغرافي.</string>
+    <string name="send_too_large">تتجاوز العناصر المحددة الحد الأقصى لحجم النقل البالغ %1$s.</string>
+    <string name="send_large_warning">يستغرق نقل الملفات الكبيرة عبر رموز QR وقتًا طويلًا، ويُنصح باختيار الوضع السريع أو تحسين الصور.</string>
+    <string name="send_summary">%1$s · %2$s · نحو %3$s</string>
+    <string name="send_continue_pair">المتابعة إلى الاقتران</string>
+    <string name="send_start">بدء البث</string>
+    <string name="send_failed_title">تعذّر تجهيز عملية النقل</string>
+    <string name="send_error_too_large">تتجاوز العناصر المحددة الحد الأقصى لحجم النقل.</string>
+    <string name="send_error_unreadable">تعذّرت قراءة أحد العناصر المحددة. يرجى إزالته والمحاولة مجددًا.</string>
+    <string name="send_error_pairing">رمز الاقتران غير صالح. يرجى عرض رمز جديد على الجهاز المستقبِل.</string>
+    <string name="send_error_storage">لا تتوفر مساحة تخزين كافية لتجهيز عملية النقل.</string>
+    <string name="send_error_unknown">حدث خطأ غير متوقع أثناء تجهيز عملية النقل.</string>
+    <string name="text_dialog_title">رسالة نصية</string>
+    <string name="text_dialog_hint">اكتب النص المراد إرساله أو الصقه</string>
+
+    <!-- الاقتران لدى المرسِل -->
+    <string name="pairing_scan_title">امسح رمز الاقتران</string>
+    <string name="pairing_scan_body">افتح Madix Beam على الجهاز المستقبِل واختر «استقبال»، ثم وجّه هذه الكاميرا نحو الرمز المعروض عليه.</string>
+    <string name="pairing_scan_searching">جارٍ البحث عن رمز الاقتران</string>
+    <string name="pairing_not_pairing_code">هذا الرمز ليس رمز اقتران خاصًا بـ Madix Beam.</string>
+    <string name="pairing_invalid_code">تعذّر التحقق من رمز الاقتران. يرجى عرض رمز جديد والمحاولة مجددًا.</string>
+    <string name="camera_rationale_pairing">يلزم الوصول إلى الكاميرا لمسح رمز الاقتران من الجهاز المستقبِل، وتُعالَج الصور على هذا الجهاز فقط.</string>
+
+    <!-- التجهيز والبث -->
+    <string name="prepare_packaging">تجميع العناصر</string>
+    <string name="prepare_compressing">الضغط</string>
+    <string name="prepare_sealing">التشفير</string>
+    <string name="prepare_body">يُجهَّز المحتوى على هذا الجهاز، ولا يغادره أي شيء قبل عرض الرموز.</string>
+    <string name="broadcast_title">جارٍ البث</string>
+    <string name="broadcast_qr_description">رمز النقل المتحرك</string>
+    <string name="broadcast_paused">متوقف مؤقتًا</string>
+    <string name="broadcast_frame_rate">معدل الإطارات</string>
+    <string name="broadcast_fps_value">%1$d إطار/ث</string>
+    <string name="broadcast_pass_duration">مدة الدورة الكاملة: %1$s</string>
+    <string name="broadcast_pass_value">%1$d · %2$s</string>
+    <string name="broadcast_payload_summary">%1$s من المحتوى · %2$s بعد التشفير</string>
+    <string name="broadcast_hint">ثبّت كاميرا الجهاز المستقبِل على مسافة تتراوح بين 20 و40 سم من هذه الشاشة. يمكن استقبال الإطارات بأي ترتيب، وسيُشير الجهاز المستقبِل إلى اكتمال النقل.</string>
+    <string name="broadcast_stop_title">هل تريد إيقاف البث؟</string>
+    <string name="broadcast_stop_body">لن يتمكن الجهاز المستقبِل من إكمال عملية النقل.</string>
+    <string name="broadcast_finish_title">هل تريد إنهاء عملية النقل؟</string>
+    <string name="broadcast_finish_body">تأكّد من أن الجهاز المستقبِل يُظهر اكتمال عملية النقل.</string>
+    <string name="stat_frames">الإطارات</string>
+    <string name="stat_pass">الدورة</string>
+    <string name="stat_elapsed">المدة</string>
+    <string name="verification_code">رمز التحقق</string>
+    <string name="verification_compare_generic">تأكّد من ظهور الرمز نفسه على الجهاز المستقبِل.</string>
+    <string name="verification_compare_named">تأكّد من ظهور الرمز نفسه على %1$s.</string>
+    <string name="mode_paired">تشفير بالاقتران</string>
+    <string name="mode_password">تشفير بكلمة مرور</string>
+    <string name="mode_open">دون تشفير</string>
+
+    <!-- الاستقبال -->
+    <string name="receive_title">استقبال</string>
+    <string name="pairing_code_title">رمز الاقتران</string>
+    <string name="pairing_code_body">يحتوي هذا الرمز على مفتاح عام لمرة واحدة، ولا يمكن استخدامه لقراءة أي بيانات.</string>
+    <string name="pairing_single_use">لمرة واحدة</string>
+    <string name="receive_step_1">اختر «اقتران الأجهزة» على الجهاز المرسِل وامسح هذا الرمز.</string>
+    <string name="receive_step_2">اضغط «بدء الاستقبال» ووجّه هذه الكاميرا نحو شاشة الجهاز المرسِل.</string>
+    <string name="receive_step_3">تأكّد من ظهور رمز التحقق نفسه على الجهازين.</string>
+    <string name="receive_direct_note">في عمليات النقل المحمية بكلمة مرور أو غير المشفرة، ابدأ الاستقبال مباشرة.</string>
+    <string name="receive_start">بدء الاستقبال</string>
+    <string name="camera_rationale_receive">يلزم الوصول إلى الكاميرا لقراءة رموز النقل، وتُعالَج الصور على هذا الجهاز فقط دون حفظها.</string>
+    <string name="camera_permission_title">يلزم الوصول إلى الكاميرا</string>
+    <string name="camera_permission_grant">السماح بالوصول إلى الكاميرا</string>
+    <string name="scan_searching_title">جارٍ البحث عن بث</string>
+    <string name="scan_searching_body">وجّه الكاميرا نحو الرموز المعروضة على الجهاز المرسِل.</string>
+    <string name="scan_wrong_recipient">هذا البث موجّه إلى جهاز آخر. اطلب من المرسِل مسح رمز الاقتران الخاص بهذا الجهاز.</string>
+    <string name="scan_pairing_code_seen">هذا رمز اقتران. يرجى توجيه الكاميرا نحو البث المعروض على الجهاز المرسِل.</string>
+    <string name="scan_receiving_title">جارٍ الاستقبال</string>
+    <string name="scan_received_of">%1$s من أصل %2$s</string>
+    <string name="scan_speed_eta">%1$s · المتبقي %2$s</string>
+    <string name="scan_verification_hint">تأكّد من ظهور هذا الرمز على الجهاز المرسِل.</string>
+    <string name="scan_frames">%1$d إطارًا مفيدًا · %2$d مقروءًا</string>
+    <string name="scan_password_title">كلمة المرور مطلوبة</string>
+    <string name="scan_password_body">اكتمل استقبال البيانات. أدخل كلمة المرور التي زوّدك بها المرسِل لفتح عملية النقل.</string>
+    <string name="scan_password_wrong">كلمة المرور غير صحيحة.</string>
+    <string name="scan_password_unlock">فتح عملية النقل</string>
+    <string name="scan_opening_title">فك التشفير والتحقق</string>
+    <string name="scan_opening_body">يُتحقق من موثوقية كل ملف قبل حفظه.</string>
+    <string name="scan_failed_title">تعذّر فتح عملية النقل</string>
+    <string name="scan_failed_integrity">لم تجتز البيانات المستلمة التحقق. يرجى مسح البث مجددًا.</string>
+    <string name="scan_failed_storage">لا تتوفر مساحة تخزين كافية على هذا الجهاز.</string>
+    <string name="scan_failed_unknown">حدث خطأ غير متوقع أثناء فتح عملية النقل.</string>
+    <string name="scan_retry">المسح مجددًا</string>
+    <string name="foreign_title">محتوى رمز QR</string>
+    <string name="foreign_body">لم يُنشأ هذا الرمز بواسطة Madix Beam.</string>
+
+    <!-- النتيجة -->
+    <string name="result_title">اكتملت عملية النقل</string>
+    <string name="result_summary">%1$s · %2$s · %3$s</string>
+    <string name="result_from">من %1$s</string>
+    <string name="result_verified">تم التحقق من السلامة</string>
+    <string name="result_sha">SHA-256 %1$s…</string>
+
+    <!-- السجل -->
+    <string name="history_title">السجل</string>
+    <string name="history_detail_title">تفاصيل عملية النقل</string>
+    <string name="filter_all">الكل</string>
+    <string name="filter_sent">المرسَلة</string>
+    <string name="filter_received">المستلَمة</string>
+    <string name="history_empty_title">لا توجد عمليات نقل لعرضها</string>
+    <string name="history_empty_body">تُسجَّل عمليات النقل المكتملة هنا على هذا الجهاز فقط.</string>
+    <string name="history_clear_title">مسح السجل</string>
+    <string name="history_clear_body">ستُحذف جميع سجلات النقل، مع الإبقاء على الملفات المستلمة.</string>
+    <string name="history_delete_title">هل تريد حذف هذا السجل؟</string>
+    <string name="history_delete_body_received">سيُحذف السجل والملفات المستلمة المخزنة في Madix Beam نهائيًا، ولن تتأثر النسخ المحفوظة على الجهاز.</string>
+    <string name="history_delete_body_sent">سيُحذف السجل نهائيًا، ولن تتأثر الملفات الأصلية.</string>
+    <string name="history_items">العناصر</string>
+    <string name="history_file_removed">لم يعد الملف متاحًا</string>
+    <string name="history_missing_title">لم يُعثر على السجل</string>
+    <string name="history_missing_body">ربما حُذف هذا السجل.</string>
+    <string name="detail_direction">الاتجاه</string>
+    <string name="detail_date">التاريخ</string>
+    <string name="detail_sender">المرسِل</string>
+    <string name="detail_recipient">المستلِم</string>
+    <string name="detail_size">حجم المحتوى</string>
+    <string name="detail_sealed_size">الحجم بعد التشفير</string>
+    <string name="detail_duration">المدة</string>
+    <string name="detail_security">الحماية</string>
+    <string name="detail_profile">وضع السرعة</string>
+
+    <!-- الإعدادات -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_section_appearance">المظهر</string>
+    <string name="settings_section_security">الأمان</string>
+    <string name="settings_section_transfer">النقل</string>
+    <string name="settings_section_storage">التخزين</string>
+    <string name="settings_section_about">حول التطبيق</string>
+    <string name="settings_theme">السمة</string>
+    <string name="theme_system">حسب النظام</string>
+    <string name="theme_light">فاتحة</string>
+    <string name="theme_dark">داكنة</string>
+    <string name="settings_language">اللغة</string>
+    <string name="language_system">حسب النظام</string>
+    <string name="settings_app_lock">قفل التطبيق</string>
+    <string name="settings_app_lock_body">طلب البصمة أو قفل شاشة الجهاز عند فتح Madix Beam.</string>
+    <string name="settings_lock_confirm">أكّد لتفعيل قفل التطبيق</string>
+    <string name="settings_lock_unavailable">يرجى ضبط قفل شاشة على هذا الجهاز قبل تفعيل قفل التطبيق.</string>
+    <string name="settings_secure_screen">حماية الشاشة</string>
+    <string name="settings_secure_screen_body">منع لقطات الشاشة وتسجيلها، وإخفاء المحتوى في قائمة التطبيقات الأخيرة.</string>
+    <string name="settings_default_security">الحماية الافتراضية</string>
+    <string name="settings_default_profile">وضع السرعة الافتراضي</string>
+    <string name="settings_photo_quality">تحسين الصور</string>
+    <string name="settings_device_name">اسم الجهاز</string>
+    <string name="settings_device_name_body">يظهر هذا الاسم للجهاز الآخر أثناء عمليات النقل.</string>
+    <string name="settings_brightness">أقصى سطوع</string>
+    <string name="settings_brightness_body">رفع سطوع الشاشة أثناء البث لمسح أكثر موثوقية.</string>
+    <string name="settings_haptics">الاستجابة اللمسية</string>
+    <string name="settings_haptics_body">الاهتزاز عند رصد عملية نقل وعند اكتمالها.</string>
+    <string name="settings_clear_files">حذف الملفات المستلمة</string>
+    <string name="settings_clear_files_body">ستُحذف جميع الملفات التي استلمها Madix Beam نهائيًا، ولن تتأثر النسخ المحفوظة على الجهاز.</string>
+    <string name="settings_storage_used">المساحة المستخدمة: %1$s</string>
+    <string name="settings_clear_history_body">إزالة جميع سجلات النقل</string>
+    <string name="settings_version">الإصدار %1$s</string>
+    <string name="settings_privacy_body">كيفية تعامل Madix Beam مع معلوماتك</string>
+
+    <!-- حول التطبيق -->
+    <string name="about_title">حول Madix Beam</string>
+    <string name="about_body">ينقل Madix Beam الملفات بين الأجهزة حصرًا عبر رموز QR المتحركة، دون الحاجة إلى أي اتصال بالشبكة، ويعمل بالكامل دون إنترنت مع حماية كل عملية نقل بأحدث تقنيات التشفير.</string>
+    <string name="about_features">الإمكانات</string>
+    <string name="feature_offline_title">يعمل دون اتصال بالكامل</string>
+    <string name="feature_offline_body">لا يملك التطبيق إذن الوصول إلى الإنترنت، وتنتقل البيانات عبر الشاشة والكاميرا فقط.</string>
+    <string name="feature_e2e_title">تشفير تام بين الطرفين</string>
+    <string name="feature_e2e_body">يعتمد اقتران الأجهزة على تبادل مفاتيح ECDH P-256 مؤقتة وتشفير AES-256-GCM، مع رمز تحقق من ستة أرقام.</string>
+    <string name="feature_fountain_title">ترميز نافوري غير محدود المعدل</string>
+    <string name="feature_fountain_body">يمكن استقبال الإطارات بأي ترتيب، وتُعاد بناء الإطارات الفائتة من رموز الإصلاح دون إعادة إرسال.</string>
+    <string name="feature_integrity_title">سلامة موثّقة</string>
+    <string name="feature_integrity_body">يُتحقق من موثوقية كل جزء مشفّر، ويُطابق كل ملف مع بصمته وفق SHA-256.</string>
+    <string name="feature_password_title">الحماية بكلمة مرور</string>
+    <string name="feature_password_body">تُعزَّز كلمات المرور باستخدام PBKDF2-HMAC-SHA-256 بعدد 200,000 تكرار.</string>
+    <string name="feature_lock_title">قفل التطبيق</string>
+    <string name="feature_lock_body">تحافظ الحماية بالبصمة ومنع لقطات الشاشة والتخزين الخاص على سرية عمليات النقل.</string>
+    <string name="about_technology">المواصفات التقنية</string>
+    <string name="about_technology_body">تُرمَّز الإطارات بصيغة Base45 في رموز QR أبجدية رقمية مع تحقق CRC-32. وتُضغط البيانات بخوارزمية DEFLATE عند الفائدة، وتُشفّر على أجزاء بمعيار AES-256-GCM المرتبط بترويسة النقل، ثم تُوزَّع بترميز نافوري منهجي يُفك بطريقة الحذف الغاوسي التزايدي.</string>
+    <string name="about_licenses">المكونات مفتوحة المصدر</string>
+    <string name="about_copyright">© 2026 Madix. جميع الحقوق محفوظة.</string>
+
+    <!-- سياسة الخصوصية -->
+    <string name="privacy_title">سياسة الخصوصية</string>
+    <string name="privacy_intro">توضح هذه السياسة كيفية تعامل Madix Beam مع المعلومات، علمًا بأن التطبيق مصمم للعمل دون جمع أي بيانات شخصية.</string>
+    <string name="privacy_section_data_title">المعلومات المجمّعة</string>
+    <string name="privacy_section_data_body">لا يجمع Madix Beam أي معلومات شخصية، ولا يخزنها على خوادم بعيدة، ولا يبيعها أو يشاركها. ولا يتضمن التطبيق أي مكونات للتحليلات أو الإعلانات أو التتبع.</string>
+    <string name="privacy_section_network_title">الوصول إلى الشبكة</string>
+    <string name="privacy_section_network_body">لا يطلب التطبيق إذن الوصول إلى الإنترنت، وتتم عمليات النقل حصرًا بين شاشة جهاز وكاميرا جهاز آخر.</string>
+    <string name="privacy_section_camera_title">الكاميرا</string>
+    <string name="privacy_section_camera_body">تُستخدم الكاميرا أثناء مسح الرموز فقط، وتُحلَّل الصور في ذاكرة الجهاز دون حفظها أو إرسالها.</string>
+    <string name="privacy_section_storage_title">البيانات المخزنة</string>
+    <string name="privacy_section_storage_body">تُحفظ الملفات المستلمة وسجل النقل في التخزين الخاص بالتطبيق، وتُستثنى من النسخ الاحتياطي السحابي، ويمكن حذفها في أي وقت من الإعدادات.</string>
+    <string name="privacy_section_security_title">الأمان</string>
+    <string name="privacy_section_security_body">تستخدم عمليات النقل المشفرة مفاتيح لا توجد إلا في الذاكرة طوال مدة عملية النقل، ويوفر قفل التطبيق وحماية الشاشة الاختياريان حماية إضافية.</string>
+    <string name="privacy_section_contact_title">التواصل</string>
+    <string name="privacy_section_contact_body">يمكن توجيه الاستفسارات المتعلقة بهذه السياسة إلى الناشر عبر بيانات التواصل المدرجة في صفحة التطبيق على متجر التطبيقات.</string>
+    <string name="privacy_updated">تاريخ السريان: نوفمبر 2026</string>
+
+    <!-- الإشعارات -->
+    <string name="format_speed">%1$s/ث</string>
+    <string name="toast_no_app">لا يتوفر تطبيق لفتح هذا العنصر.</string>
+    <string name="toast_copied">تم النسخ إلى الحافظة</string>
+    <string name="toast_save_failed">تعذّر حفظ بعض الملفات.</string>
+    <string name="toast_storage_permission">يلزم إذن الوصول إلى التخزين لحفظ الملفات على الجهاز.</string>
+
+    <plurals name="item_count">
+        <item quantity="zero">لا عناصر</item>
+        <item quantity="one">عنصر واحد</item>
+        <item quantity="two">عنصران</item>
+        <item quantity="few">%d عناصر</item>
+        <item quantity="many">%d عنصرًا</item>
+        <item quantity="other">%d عنصر</item>
+    </plurals>
+    <plurals name="selected_items">
+        <item quantity="zero">لم يُحدَّد أي عنصر</item>
+        <item quantity="one">عنصر واحد محدد</item>
+        <item quantity="two">عنصران محددان</item>
+        <item quantity="few">%d عناصر محددة</item>
+        <item quantity="many">%d عنصرًا محددًا</item>
+        <item quantity="other">%d عنصر محدد</item>
+    </plurals>
+    <plurals name="record_title_more">
+        <item quantity="zero">%1$s</item>
+        <item quantity="one">%1$s وعنصر آخر</item>
+        <item quantity="two">%1$s وعنصران آخران</item>
+        <item quantity="few">%1$s و%2$d عناصر أخرى</item>
+        <item quantity="many">%1$s و%2$d عنصرًا آخر</item>
+        <item quantity="other">%1$s و%2$d عنصر آخر</item>
+    </plurals>
+    <plurals name="toast_saved">
+        <item quantity="zero">لم يُحفظ أي ملف</item>
+        <item quantity="one">حُفظ ملف واحد على الجهاز</item>
+        <item quantity="two">حُفظ ملفان على الجهاز</item>
+        <item quantity="few">حُفظت %d ملفات على الجهاز</item>
+        <item quantity="many">حُفظ %d ملفًا على الجهاز</item>
+        <item quantity="other">حُفظ %d ملف على الجهاز</item>
+    </plurals>
 </resources>

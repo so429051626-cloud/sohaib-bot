@@ -2,4 +2,335 @@
 <resources>
     <string name="app_name" translatable="false">Madix Beam</string>
     <string name="share_target_label">Send with Madix Beam</string>
+
+    <!-- Common actions -->
+    <string name="action_add">Add</string>
+    <string name="action_back">Back</string>
+    <string name="action_back_to_items">Return to items</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_close">Close</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_done">Done</string>
+    <string name="action_faster">Increase frame rate</string>
+    <string name="action_finish">Finish</string>
+    <string name="action_next">Next</string>
+    <string name="action_ok">OK</string>
+    <string name="action_open">Open</string>
+    <string name="action_open_link">Open link</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_remove">Remove</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_save">Save to device</string>
+    <string name="action_save_all">Save all</string>
+    <string name="action_share">Share</string>
+    <string name="action_share_all">Share all</string>
+    <string name="action_skip">Skip</string>
+    <string name="action_slower">Decrease frame rate</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_torch">Flashlight</string>
+    <string name="action_view_all">View all</string>
+    <string name="action_zoom">Zoom</string>
+
+    <!-- Splash and onboarding -->
+    <string name="splash_tagline">Transfer anything through light</string>
+    <string name="splash_footer">End-to-end encrypted · Fully offline</string>
+    <string name="onboarding_title_1">Transfer through light</string>
+    <string name="onboarding_body_1">Madix Beam moves photos, videos, documents and messages between devices using animated QR codes. No internet connection, Wi-Fi or Bluetooth is required.</string>
+    <string name="onboarding_title_2">End-to-end encryption</string>
+    <string name="onboarding_body_2">Every transfer is sealed with AES-256-GCM. Device pairing establishes a unique key known only to the two devices involved.</string>
+    <string name="onboarding_title_3">Resilient by design</string>
+    <string name="onboarding_body_3">Frames may be received in any order, and missed frames are recovered automatically. Every file is verified before it is saved.</string>
+    <string name="onboarding_start">Get started</string>
+
+    <!-- Lock -->
+    <string name="lock_title">Madix Beam is locked</string>
+    <string name="lock_body">Confirm your identity to access your transfers.</string>
+    <string name="lock_unlock">Unlock</string>
+    <string name="lock_prompt_title">Unlock Madix Beam</string>
+    <string name="lock_prompt_subtitle">Use your biometrics or device screen lock</string>
+    <string name="lock_unavailable">No screen lock is configured on this device. App lock has been suspended.</string>
+
+    <!-- Home -->
+    <string name="home_subtitle">Secure optical file transfer</string>
+    <string name="home_hero_title">Transfer anything through light</string>
+    <string name="home_hero_body">No internet. No cables. Two screens and a camera are all that is required.</string>
+    <string name="badge_aes">AES-256</string>
+    <string name="badge_offline">Offline</string>
+    <string name="home_send">Send</string>
+    <string name="home_send_hint">Display animated codes</string>
+    <string name="home_receive">Receive</string>
+    <string name="home_receive_hint">Scan with the camera</string>
+    <string name="home_quick_actions">Quick actions</string>
+    <string name="quick_media">Media</string>
+    <string name="quick_files">Files</string>
+    <string name="quick_text">Text</string>
+    <string name="quick_scan">Scan</string>
+    <string name="stat_transfers">Transfers</string>
+    <string name="stat_data">Data moved</string>
+    <string name="stat_files">Items</string>
+    <string name="home_recent">Recent transfers</string>
+    <string name="home_empty_title">No transfers yet</string>
+    <string name="home_empty_body">Completed transfers will appear here.</string>
+    <string name="home_privacy_note">All processing takes place on this device</string>
+    <string name="record_subtitle_sent">Sent · %1$s · %2$s</string>
+    <string name="record_subtitle_received">Received · %1$s · %2$s</string>
+    <string name="history_untitled">Transfer</string>
+
+    <!-- Send -->
+    <string name="send_title">Send</string>
+    <string name="add_media">Photos and videos</string>
+    <string name="add_files">Files</string>
+    <string name="add_text">Text message</string>
+    <string name="add_clipboard">Paste</string>
+    <string name="send_empty_title">Select what to send</string>
+    <string name="send_empty_body">Add photos, videos, documents or a text message. Any file type is supported.</string>
+    <string name="item_text_message">Text message · %1$s</string>
+    <string name="item_size_unknown">Size unavailable</string>
+    <string name="send_security">Protection</string>
+    <string name="security_paired">Device pairing</string>
+    <string name="security_paired_body">The receiving device displays a one-time code. A unique key is agreed between both devices.</string>
+    <string name="security_recommended">Recommended</string>
+    <string name="security_password">Password</string>
+    <string name="security_password_body">The receiving device must enter the same password to open the transfer.</string>
+    <string name="security_open">No encryption</string>
+    <string name="security_open_body">Any device that scans the codes can read the content. Integrity is still verified.</string>
+    <string name="password_label">Password</string>
+    <string name="password_hint">At least %1$d characters. Share it with the recipient in person.</string>
+    <string name="password_too_short">The password must contain at least %1$d characters.</string>
+    <string name="password_show">Show password</string>
+    <string name="password_hide">Hide password</string>
+    <string name="send_speed">Transfer speed</string>
+    <string name="profile_reliable">Reliable</string>
+    <string name="profile_balanced">Balanced</string>
+    <string name="profile_fast">Fast</string>
+    <string name="profile_turbo">Turbo</string>
+    <string name="profile_reliable_body">Compact codes with stronger error correction. Suited to older cameras and difficult lighting.</string>
+    <string name="profile_balanced_body">The recommended balance between speed and scanning reliability.</string>
+    <string name="profile_fast_body">Denser codes for modern devices held steadily at a short distance.</string>
+    <string name="profile_turbo_body">Maximum density and frame rate. Requires a high-quality camera and a steady position.</string>
+    <string name="send_photo_quality">Photo optimisation</string>
+    <string name="quality_original">Original</string>
+    <string name="quality_high">High</string>
+    <string name="quality_balanced">Balanced</string>
+    <string name="quality_compact">Compact</string>
+    <string name="send_photo_quality_note">Optimised photos are resized and re-encoded, which shortens the transfer and removes embedded metadata such as location.</string>
+    <string name="send_too_large">The selection exceeds the maximum transfer size of %1$s.</string>
+    <string name="send_large_warning">Large transfers through QR codes take considerable time. Consider the Fast profile or photo optimisation.</string>
+    <string name="send_summary">%1$s · %2$s · approximately %3$s</string>
+    <string name="send_continue_pair">Continue to pairing</string>
+    <string name="send_start">Start transmission</string>
+    <string name="send_failed_title">The transfer could not be prepared</string>
+    <string name="send_error_too_large">The selected items exceed the maximum transfer size.</string>
+    <string name="send_error_unreadable">One of the selected items can no longer be read. Remove it and try again.</string>
+    <string name="send_error_pairing">The pairing code is not valid. Ask the receiving device to display a new code.</string>
+    <string name="send_error_storage">There is not enough free storage to prepare this transfer.</string>
+    <string name="send_error_unknown">An unexpected error occurred while preparing the transfer.</string>
+    <string name="text_dialog_title">Text message</string>
+    <string name="text_dialog_hint">Type or paste the text to send</string>
+
+    <!-- Pairing (sender) -->
+    <string name="pairing_scan_title">Scan the pairing code</string>
+    <string name="pairing_scan_body">On the receiving device, open Madix Beam and select Receive. Point this camera at the code displayed there.</string>
+    <string name="pairing_scan_searching">Searching for a pairing code</string>
+    <string name="pairing_not_pairing_code">This is not a Madix Beam pairing code.</string>
+    <string name="pairing_invalid_code">The pairing code could not be verified. Display a new code and try again.</string>
+    <string name="camera_rationale_pairing">Camera access is required to scan the pairing code of the receiving device. Images are processed on this device only.</string>
+
+    <!-- Preparation and broadcast -->
+    <string name="prepare_packaging">Packaging items</string>
+    <string name="prepare_compressing">Compressing</string>
+    <string name="prepare_sealing">Encrypting</string>
+    <string name="prepare_body">The content is being prepared on this device. Nothing leaves the device until the codes are displayed.</string>
+    <string name="broadcast_title">Transmitting</string>
+    <string name="broadcast_qr_description">Animated transfer code</string>
+    <string name="broadcast_paused">Paused</string>
+    <string name="broadcast_frame_rate">Frame rate</string>
+    <string name="broadcast_fps_value">%1$d fps</string>
+    <string name="broadcast_pass_duration">One complete cycle: %1$s</string>
+    <string name="broadcast_pass_value">%1$d · %2$s</string>
+    <string name="broadcast_payload_summary">%1$s of content · %2$s encrypted</string>
+    <string name="broadcast_hint">Hold the receiving camera 20 to 40 cm from this screen. Frames may be received in any order; the receiving device indicates when the transfer is complete.</string>
+    <string name="broadcast_stop_title">Stop the transmission?</string>
+    <string name="broadcast_stop_body">The receiving device will not be able to complete the transfer.</string>
+    <string name="broadcast_finish_title">Finish the transfer?</string>
+    <string name="broadcast_finish_body">Confirm that the receiving device reports the transfer as complete.</string>
+    <string name="stat_frames">Frames</string>
+    <string name="stat_pass">Cycle</string>
+    <string name="stat_elapsed">Elapsed</string>
+    <string name="verification_code">Verification code</string>
+    <string name="verification_compare_generic">Confirm that the receiving device shows the same code.</string>
+    <string name="verification_compare_named">Confirm that %1$s shows the same code.</string>
+    <string name="mode_paired">Paired encryption</string>
+    <string name="mode_password">Password encryption</string>
+    <string name="mode_open">Unencrypted</string>
+
+    <!-- Receive -->
+    <string name="receive_title">Receive</string>
+    <string name="pairing_code_title">Pairing code</string>
+    <string name="pairing_code_body">This code contains a one-time public key. It cannot be used to read any data.</string>
+    <string name="pairing_single_use">Single use</string>
+    <string name="receive_step_1">On the sending device, select Device pairing and scan this code.</string>
+    <string name="receive_step_2">Select Start receiving and point this camera at the sending screen.</string>
+    <string name="receive_step_3">Confirm that both devices display the same verification code.</string>
+    <string name="receive_direct_note">For password-protected or unencrypted transfers, start receiving directly.</string>
+    <string name="receive_start">Start receiving</string>
+    <string name="camera_rationale_receive">Camera access is required to read the transfer codes. Images are processed on this device only and are never stored.</string>
+    <string name="camera_permission_title">Camera access required</string>
+    <string name="camera_permission_grant">Allow camera access</string>
+    <string name="scan_searching_title">Searching for a transmission</string>
+    <string name="scan_searching_body">Point the camera at the codes displayed on the sending device.</string>
+    <string name="scan_wrong_recipient">This transmission is addressed to another device. Ask the sender to scan the pairing code of this device.</string>
+    <string name="scan_pairing_code_seen">This is a pairing code. Point the camera at the transmission on the sending device instead.</string>
+    <string name="scan_receiving_title">Receiving</string>
+    <string name="scan_received_of">%1$s of %2$s</string>
+    <string name="scan_speed_eta">%1$s · %2$s remaining</string>
+    <string name="scan_verification_hint">Confirm that the sending device shows this code.</string>
+    <string name="scan_frames">%1$d useful frames · %2$d decoded</string>
+    <string name="scan_password_title">Password required</string>
+    <string name="scan_password_body">All data has been received. Enter the password provided by the sender to open the transfer.</string>
+    <string name="scan_password_wrong">The password is incorrect.</string>
+    <string name="scan_password_unlock">Open transfer</string>
+    <string name="scan_opening_title">Decrypting and verifying</string>
+    <string name="scan_opening_body">Each file is authenticated before it is saved.</string>
+    <string name="scan_failed_title">The transfer could not be opened</string>
+    <string name="scan_failed_integrity">The received data failed verification. Scan the transmission again.</string>
+    <string name="scan_failed_storage">There is not enough free storage on this device.</string>
+    <string name="scan_failed_unknown">An unexpected error occurred while opening the transfer.</string>
+    <string name="scan_retry">Scan again</string>
+    <string name="foreign_title">QR code content</string>
+    <string name="foreign_body">This code was not created by Madix Beam.</string>
+
+    <!-- Result -->
+    <string name="result_title">Transfer complete</string>
+    <string name="result_summary">%1$s · %2$s · %3$s</string>
+    <string name="result_from">From %1$s</string>
+    <string name="result_verified">Integrity verified</string>
+    <string name="result_sha">SHA-256 %1$s…</string>
+
+    <!-- History -->
+    <string name="history_title">History</string>
+    <string name="history_detail_title">Transfer details</string>
+    <string name="filter_all">All</string>
+    <string name="filter_sent">Sent</string>
+    <string name="filter_received">Received</string>
+    <string name="history_empty_title">No transfers to display</string>
+    <string name="history_empty_body">Completed transfers are recorded here on this device only.</string>
+    <string name="history_clear_title">Clear history</string>
+    <string name="history_clear_body">All history records will be removed. Received files remain stored.</string>
+    <string name="history_delete_title">Delete this record?</string>
+    <string name="history_delete_body_received">The record and the received files stored by Madix Beam will be deleted permanently. Copies saved to the device are not affected.</string>
+    <string name="history_delete_body_sent">The record will be deleted permanently. Original files are not affected.</string>
+    <string name="history_items">Items</string>
+    <string name="history_file_removed">File no longer available</string>
+    <string name="history_missing_title">Record not found</string>
+    <string name="history_missing_body">This record may have been deleted.</string>
+    <string name="detail_direction">Direction</string>
+    <string name="detail_date">Date</string>
+    <string name="detail_sender">Sender</string>
+    <string name="detail_recipient">Recipient</string>
+    <string name="detail_size">Content size</string>
+    <string name="detail_sealed_size">Encrypted size</string>
+    <string name="detail_duration">Duration</string>
+    <string name="detail_security">Protection</string>
+    <string name="detail_profile">Speed profile</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_security">Security</string>
+    <string name="settings_section_transfer">Transfer</string>
+    <string name="settings_section_storage">Storage</string>
+    <string name="settings_section_about">About</string>
+    <string name="settings_theme">Theme</string>
+    <string name="theme_system">System default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_language">Language</string>
+    <string name="language_system">System default</string>
+    <string name="settings_app_lock">App lock</string>
+    <string name="settings_app_lock_body">Require biometrics or the device screen lock to open Madix Beam.</string>
+    <string name="settings_lock_confirm">Confirm to enable app lock</string>
+    <string name="settings_lock_unavailable">Configure a screen lock on this device before enabling app lock.</string>
+    <string name="settings_secure_screen">Screen protection</string>
+    <string name="settings_secure_screen_body">Prevent screenshots and screen recording, and hide content in recent apps.</string>
+    <string name="settings_default_security">Default protection</string>
+    <string name="settings_default_profile">Default speed profile</string>
+    <string name="settings_photo_quality">Photo optimisation</string>
+    <string name="settings_device_name">Device name</string>
+    <string name="settings_device_name_body">This name is shown to the other device during transfers.</string>
+    <string name="settings_brightness">Maximum brightness</string>
+    <string name="settings_brightness_body">Raise the screen brightness while transmitting for more reliable scanning.</string>
+    <string name="settings_haptics">Haptic feedback</string>
+    <string name="settings_haptics_body">Vibrate when a transfer is detected and when it completes.</string>
+    <string name="settings_clear_files">Delete received files</string>
+    <string name="settings_clear_files_body">All files received by Madix Beam will be deleted permanently. Copies saved to the device are not affected.</string>
+    <string name="settings_storage_used">%1$s in use</string>
+    <string name="settings_clear_history_body">Remove all transfer records</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_privacy_body">How Madix Beam handles your information</string>
+
+    <!-- About -->
+    <string name="about_title">About Madix Beam</string>
+    <string name="about_body">Madix Beam transfers files between devices exclusively through animated QR codes. It requires no network connection and operates entirely offline, protecting each transfer with modern cryptography.</string>
+    <string name="about_features">Capabilities</string>
+    <string name="feature_offline_title">Fully offline</string>
+    <string name="feature_offline_body">The application has no internet permission. Data travels only through the screen and the camera.</string>
+    <string name="feature_e2e_title">End-to-end encryption</string>
+    <string name="feature_e2e_body">Device pairing uses ephemeral ECDH P-256 key agreement and AES-256-GCM, confirmed by a six-digit verification code.</string>
+    <string name="feature_fountain_title">Rateless fountain coding</string>
+    <string name="feature_fountain_body">Frames can be received in any order. Missed frames are reconstructed from repair symbols without retransmission.</string>
+    <string name="feature_integrity_title">Verified integrity</string>
+    <string name="feature_integrity_body">Every encrypted chunk is authenticated and every file is checked against its SHA-256 digest.</string>
+    <string name="feature_password_title">Password protection</string>
+    <string name="feature_password_body">Passwords are strengthened with PBKDF2-HMAC-SHA-256 using 200,000 iterations.</string>
+    <string name="feature_lock_title">Application lock</string>
+    <string name="feature_lock_body">Biometric protection, screenshot prevention and private storage keep your transfers confidential.</string>
+    <string name="about_technology">Technical specification</string>
+    <string name="about_technology_body">Frames are Base45-encoded alphanumeric QR codes with CRC-32 validation. Payloads are compressed with DEFLATE when beneficial, sealed with chunked AES-256-GCM bound to the transfer header, and distributed with a systematic fountain code decoded by incremental Gaussian elimination.</string>
+    <string name="about_licenses">Open-source components</string>
+    <string name="about_copyright">© 2026 Madix. All rights reserved.</string>
+
+    <!-- Privacy -->
+    <string name="privacy_title">Privacy policy</string>
+    <string name="privacy_intro">This policy describes how Madix Beam handles information. Madix Beam is designed to operate without collecting any personal data.</string>
+    <string name="privacy_section_data_title">Information collected</string>
+    <string name="privacy_section_data_body">Madix Beam does not collect, store on remote servers, sell or share any personal information. The application contains no analytics, advertising or tracking components.</string>
+    <string name="privacy_section_network_title">Network access</string>
+    <string name="privacy_section_network_body">The application does not request internet access. Transfers take place exclusively between the screen of one device and the camera of another.</string>
+    <string name="privacy_section_camera_title">Camera</string>
+    <string name="privacy_section_camera_body">The camera is used only while scanning codes. Images are analysed in memory on the device and are never saved or transmitted.</string>
+    <string name="privacy_section_storage_title">Stored data</string>
+    <string name="privacy_section_storage_body">Received files and the transfer history are kept in the private storage of the application and are excluded from cloud backups. They can be deleted at any time from the settings.</string>
+    <string name="privacy_section_security_title">Security</string>
+    <string name="privacy_section_security_body">Encrypted transfers use keys that exist only in memory for the duration of a transfer. Optional app lock and screenshot protection provide additional safeguards.</string>
+    <string name="privacy_section_contact_title">Contact</string>
+    <string name="privacy_section_contact_body">Questions regarding this policy may be directed to the publisher through the contact details provided on the application store listing.</string>
+    <string name="privacy_updated">Effective date: November 2026</string>
+
+    <!-- Feedback -->
+    <string name="format_speed">%1$s/s</string>
+    <string name="toast_no_app">No application is available to open this item.</string>
+    <string name="toast_copied">Copied to clipboard</string>
+    <string name="toast_save_failed">Some files could not be saved.</string>
+    <string name="toast_storage_permission">Storage access is required to save files to the device.</string>
+
+    <plurals name="item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <plurals name="selected_items">
+        <item quantity="one">%d selected item</item>
+        <item quantity="other">%d selected items</item>
+    </plurals>
+    <plurals name="record_title_more">
+        <item quantity="one">%1$s and %2$d more</item>
+        <item quantity="other">%1$s and %2$d more</item>
+    </plurals>
+    <plurals name="toast_saved">
+        <item quantity="one">%d file saved to the device</item>
+        <item quantity="other">%d files saved to the device</item>
+    </plurals>
 </resources>
