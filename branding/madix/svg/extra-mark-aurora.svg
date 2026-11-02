@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -20 355.57 340" width="1066.72" height="1020">
+  <title>MADIX monogram — aurora</title><defs>
+    <linearGradient id="mk-g" gradientUnits="userSpaceOnUse" x1="0" y1="300" x2="315.57" y2="0"><stop offset="0" stop-color="#FF2D75"/><stop offset="0.38" stop-color="#E23BD8"/><stop offset="0.68" stop-color="#8B3DFF"/><stop offset="1" stop-color="#3C5BFF"/></linearGradient>
+    <linearGradient id="mk-gx" gradientUnits="userSpaceOnUse" x1="176.19" y1="300" x2="296.19" y2="0"><stop offset="0" stop-color="#7B3BFF"/><stop offset="0.55" stop-color="#3E7BFF"/><stop offset="1" stop-color="#3FE0FF"/></linearGradient>
+    <linearGradient id="mk-sheen" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="300">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.2"/><stop offset="0.42" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="mk-sweep" gradientUnits="userSpaceOnUse" x1="31.56" y1="15" x2="236.68" y2="285">
+      <stop offset="0.30" stop-color="#fff" stop-opacity="0"/><stop offset="0.36" stop-color="#fff" stop-opacity="0.12"/>
+      <stop offset="0.40" stop-color="#fff" stop-opacity="0"/><stop offset="0.44" stop-color="#fff" stop-opacity="0.06"/><stop offset="0.47" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="mk-weave" maskUnits="userSpaceOnUse" x="-100" y="-100" width="515.57" height="500"><rect x="-100" y="-100" width="515.57" height="500" fill="#fff"/><path d="M291.11 -60L349.27 -60L181.27 360L123.11 360Z" fill="#000"/></mask>
+    <mask id="mk-solid" maskUnits="userSpaceOnUse" x="-100" y="-100" width="515.57" height="500">
+      <g fill="#fff"><path d="M0 0h36v300h-36Z"/><path d="M0 0L38.77 0L117.17 196L78.4 196Z"/><path d="M78.4 196L117.17 196L195.57 0L156.8 0Z"/><path d="M156.8 0L195.57 0L315.57 300L276.8 300Z"/></g><path d="M291.11 -60L349.27 -60L181.27 360L123.11 360Z" fill="#000"/><path d="M276.8 0L315.57 0L195.57 300L156.8 300Z" fill="#fff"/>
+    </mask>
+    <filter id="mk-blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="26"/></filter>
+    <filter id="mk-shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+    
+    <g mask="url(#mk-weave)" fill="url(#mk-g)"><path d="M0 0h36v300h-36Z"/><path d="M0 0L38.77 0L117.17 196L78.4 196Z"/><path d="M78.4 196L117.17 196L195.57 0L156.8 0Z"/><path d="M156.8 0L195.57 0L315.57 300L276.8 300Z"/></g><path d="M276.8 0L315.57 0L195.57 300L156.8 300Z" fill="url(#mk-gx)"/>
+    <g mask="url(#mk-weave)"><g mask="url(#mk-solid)"><path d="M276.8 0L315.57 0L195.57 300L156.8 300Z" transform="translate(5 4)" fill="#000" opacity="0.28" filter="url(#mk-shadow)"/></g></g>
+    <path d="M276.8 0L315.57 0L195.57 300L156.8 300Z" fill="url(#mk-gx)"/>
+    <rect x="-10" y="-10" width="335.57" height="320" fill="url(#mk-sheen)" mask="url(#mk-solid)"/>
+    <rect x="-10" y="-10" width="335.57" height="320" fill="url(#mk-sweep)" mask="url(#mk-solid)"/>
+</svg>
