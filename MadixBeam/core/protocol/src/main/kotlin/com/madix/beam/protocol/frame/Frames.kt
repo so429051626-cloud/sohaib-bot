@@ -199,9 +199,9 @@ class PairingRequest(
 
 /**
  * Invitation displayed by a receiver that accepts direct Wi-Fi transfers. Besides the
- * receiver's public key it carries the credentials of the Wi-Fi Direct group the receiver
- * hosts (empty when unavailable), the listening port and LAN addresses for devices that share
- * a network.
+ * receiver's public key it carries the credentials of the network the receiver hosts — a
+ * local Wi-Fi hotspot or a Wi-Fi Direct group, see [linkKind] — the listening port and the
+ * receiver's IPv4 addresses.
  */
 class LinkInvitation(
     val nonce: Int,
@@ -211,6 +211,8 @@ class LinkInvitation(
     val passphrase: String,
     val port: Int,
     addresses: List<ByteArray>,
+    val linkKind: Int = if (networkName.isEmpty()) KIND_NONE else KIND_WIFI_DIRECT,
+    val security: Int = SECURITY_WPA2,
 ) {
     private val keyBytes = publicKey.copyOf()
     private val addressBytes = addresses.map { it.copyOf() }
@@ -221,7 +223,10 @@ class LinkInvitation(
     val addresses: List<ByteArray> get() = addressBytes.map { it.copyOf() }
 
     /** True when the receiver hosts a Wi-Fi Direct group that the sender can join. */
-    val hasDirectGroup: Boolean get() = networkName.isNotEmpty()
+    val hasDirectGroup: Boolean get() = linkKind == KIND_WIFI_DIRECT
+
+    /** True when the receiver hosts a local Wi-Fi hotspot that the sender can join. */
+    val hasHotspot: Boolean get() = linkKind == KIND_HOTSPOT
 
     init {
         if (keyBytes.isEmpty() || keyBytes.size > Protocol.MAX_PUBLIC_KEY_BYTES) throw ProtocolException("Invalid invitation key")
@@ -229,14 +234,32 @@ class LinkInvitation(
         if (addressBytes.size > Protocol.MAX_LINK_ADDRESSES || addressBytes.any { it.size != 4 }) {
             throw ProtocolException("Invalid addresses")
         }
-        if (networkName.isNotEmpty()) {
-            if (!networkName.startsWith("DIRECT-") || networkName.toByteArray(Charsets.UTF_8).size > Protocol.MAX_NETWORK_NAME_BYTES) {
-                throw ProtocolException("Invalid network name")
+        if (security !in SECURITY_OPEN..SECURITY_OWE) throw ProtocolException("Invalid security type")
+        when (linkKind) {
+            KIND_NONE -> if (networkName.isNotEmpty()) throw ProtocolException("Unexpected network name")
+            KIND_WIFI_DIRECT, KIND_HOTSPOT -> {
+                val nameBytes = networkName.toByteArray(Charsets.UTF_8).size
+                if (nameBytes !in 1..Protocol.MAX_NETWORK_NAME_BYTES) throw ProtocolException("Invalid network name")
+                if (linkKind == KIND_WIFI_DIRECT && !networkName.startsWith("DIRECT-")) throw ProtocolException("Invalid group name")
+                val needsPassphrase = linkKind == KIND_WIFI_DIRECT || security in SECURITY_WPA2..SECURITY_WPA3
+                if (needsPassphrase && (passphrase.length !in 8..63 || passphrase.any { it.code !in 0x20..0x7E })) {
+                    throw ProtocolException("Invalid passphrase")
+                }
             }
-            if (passphrase.length !in 8..63 || passphrase.any { it.code !in 0x20..0x7E }) {
-                throw ProtocolException("Invalid passphrase")
-            }
+            else -> throw ProtocolException("Unknown link kind")
         }
+    }
+
+    companion object {
+        const val KIND_NONE = 0
+        const val KIND_WIFI_DIRECT = 1
+        const val KIND_HOTSPOT = 2
+
+        const val SECURITY_OPEN = 0
+        const val SECURITY_WPA2 = 1
+        const val SECURITY_WPA3_TRANSITION = 2
+        const val SECURITY_WPA3 = 3
+        const val SECURITY_OWE = 4
     }
 
     fun toPairingRequest(): PairingRequest = PairingRequest(nonce, keyBytes, deviceName)

@@ -50,6 +50,10 @@ import com.madix.beam.protocol.frame.LinkInvitation
 import com.madix.beam.protocol.link.LinkException
 import com.madix.beam.protocol.link.LinkSender
 import com.madix.beam.wifi.GroupCredentials
+import com.madix.beam.wifi.HotspotJoiner
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import com.madix.beam.wifi.LinkNetwork
 import com.madix.beam.wifi.WifiDirectController
 import com.madix.beam.wifi.WifiDirectException
@@ -140,7 +144,10 @@ enum class PairingScanResult { ACCEPTED, NOT_PAIRING, INVALID }
 
 enum class ConnectStep { CONNECTING, JOINING, SECURING }
 
-enum class WifiFailure { UNSUPPORTED, PERMISSION, WIFI_OFF, LOCATION_OFF, UNREACHABLE, BUSY, DECLINED, STORAGE, INTEGRITY, INTERRUPTED, UNREADABLE }
+enum class WifiFailure { UNSUPPORTED, PERMISSION, WIFI_OFF, LOCATION_OFF, NOT_JOINED, UNREACHABLE, BUSY, DECLINED, STORAGE, INTEGRITY, INTERRUPTED, UNREADABLE }
+
+/** Which network the sender joined for a transfer; released afterwards. */
+enum class JoinKind { HOTSPOT, DIRECT }
 
 sealed interface WifiPhase {
     data object Idle : WifiPhase
@@ -186,6 +193,7 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
     val wifi: StateFlow<WifiSendUi> = wifiState.asStateFlow()
 
     private val wifiController by lazy { WifiDirectController(container.appContext) }
+    private val hotspotJoiner by lazy { HotspotJoiner(container.appContext) }
 
     @Volatile
     private var wifiJob: Job? = null
@@ -333,10 +341,10 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
         wifiState.value = WifiSendUi(phase = WifiPhase.Connecting(ConnectStep.CONNECTING), peerName = invitation.deviceName)
         wifiJob = viewModelScope.launch(Dispatchers.IO) {
             var socket: Socket? = null
-            var joinedGroup = false
+            var joined: JoinKind? = null
             var stage = WifiFailure.UNREACHABLE
             try {
-                socket = connectToReceiver(invitation) { joinedGroup = true }
+                socket = connectToReceiver(invitation) { joined = it }
                 wifiSocket = socket
                 stage = WifiFailure.INTERRUPTED
                 socket.soTimeout = LINK_TIMEOUT_MILLIS
@@ -426,30 +434,80 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
             } finally {
                 runCatching { socket?.close() }
                 wifiSocket = null
-                if (joinedGroup) {
-                    withContext(NonCancellable) { runCatching { wifiController.removeGroup() } }
+                when (joined) {
+                    JoinKind.HOTSPOT -> hotspotJoiner.release()
+                    JoinKind.DIRECT -> withContext(NonCancellable) { runCatching { wifiController.removeGroup() } }
+                    null -> Unit
                 }
             }
         }
     }
 
     /**
-     * Opens a connection to the receiver: first over a shared Wi-Fi network (instant), then by
-     * joining the receiver's Wi-Fi Direct group with the credentials from its invitation.
+     * Opens a connection to the receiver: first over a shared Wi-Fi network (instant, no prompt),
+     * then by joining the network the receiver created — its local hotspot, or its Wi-Fi Direct
+     * group — with the credentials from the scanned invitation.
      */
-    private suspend fun connectToReceiver(invitation: LinkInvitation, onJoined: () -> Unit): Socket {
-        val wifiNetwork = LinkNetwork.wifiNetwork(container.appContext)
-        for (raw in invitation.addresses) {
-            val address = InetAddress.getByAddress(raw)
-            try {
-                return LinkNetwork.connect(address, invitation.port, LAN_CONNECT_TIMEOUT_MILLIS, wifiNetwork)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Not on the same network; try the next route.
+    private suspend fun connectToReceiver(invitation: LinkInvitation, onJoined: (JoinKind) -> Unit): Socket {
+        tryLan(invitation)?.let { return it }
+        return when {
+            invitation.hasHotspot -> joinHotspot(invitation, onJoined)
+            invitation.hasDirectGroup -> joinDirectGroup(invitation, onJoined)
+            else -> throw WifiUnavailable(WifiFailure.UNREACHABLE)
+        }
+    }
+
+    /** Tries every advertised address at once; returns the first connection that succeeds. */
+    private suspend fun tryLan(invitation: LinkInvitation): Socket? = coroutineScope {
+        if (invitation.addresses.isEmpty()) return@coroutineScope null
+        val network = LinkNetwork.wifiNetwork(container.appContext)
+        val attempts = invitation.addresses.map { raw ->
+            async(Dispatchers.IO) {
+                try {
+                    LinkNetwork.connect(InetAddress.getByAddress(raw), invitation.port, LAN_CONNECT_TIMEOUT_MILLIS, network)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
             }
         }
-        if (!invitation.hasDirectGroup) throw WifiUnavailable(WifiFailure.UNREACHABLE)
+        val sockets = attempts.awaitAll()
+        val chosen = sockets.firstOrNull { it != null }
+        sockets.filterNotNull().filter { it !== chosen }.forEach { runCatching { it.close() } }
+        chosen
+    }
+
+    private suspend fun joinHotspot(invitation: LinkInvitation, onJoined: (JoinKind) -> Unit): Socket {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) throw WifiUnavailable(WifiFailure.UNSUPPORTED)
+        if (!wifiController.isWifiEnabled) throw WifiUnavailable(WifiFailure.WIFI_OFF)
+        wifiState.update { it.copy(phase = WifiPhase.Connecting(ConnectStep.JOINING)) }
+        val network = try {
+            hotspotJoiner.join(invitation.networkName, invitation.passphrase, invitation.security)
+        } catch (e: WifiDirectException) {
+            throw WifiUnavailable(WifiFailure.NOT_JOINED)
+        }
+        onJoined(JoinKind.HOTSPOT)
+        wifiState.update { it.copy(phase = WifiPhase.Connecting(ConnectStep.CONNECTING)) }
+        val candidates = (hotspotJoiner.ownerAddresses(network) + invitation.addresses.map { InetAddress.getByAddress(it) })
+            .distinct()
+        val deadline = SystemClock.elapsedRealtime() + GROUP_CONNECT_WINDOW_MILLIS
+        while (SystemClock.elapsedRealtime() < deadline) {
+            for (address in candidates) {
+                try {
+                    return LinkNetwork.connect(address, invitation.port, GROUP_CONNECT_TIMEOUT_MILLIS, network)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Try the next candidate.
+                }
+            }
+            delay(400)
+        }
+        throw WifiUnavailable(WifiFailure.UNREACHABLE)
+    }
+
+    private suspend fun joinDirectGroup(invitation: LinkInvitation, onJoined: (JoinKind) -> Unit): Socket {
         when (wifiController.readiness()) {
             WifiReadiness.READY -> Unit
             WifiReadiness.UNSUPPORTED -> throw WifiUnavailable(WifiFailure.UNSUPPORTED)
@@ -464,7 +522,7 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
         } catch (e: WifiDirectException) {
             throw WifiUnavailable(WifiFailure.UNREACHABLE)
         }
-        onJoined()
+        onJoined(JoinKind.DIRECT)
         wifiState.update { it.copy(phase = WifiPhase.Connecting(ConnectStep.CONNECTING)) }
         val deadline = SystemClock.elapsedRealtime() + GROUP_CONNECT_WINDOW_MILLIS
         while (SystemClock.elapsedRealtime() < deadline) {
@@ -735,6 +793,7 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
         wifiJob?.cancel()
         runCatching { wifiSocket?.close() }
         if (lastInvitation != null) {
+            hotspotJoiner.release()
             val controller = wifiController
             container.applicationScope.launch {
                 runCatching { controller.removeGroup() }
@@ -752,7 +811,7 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
     private companion object {
         const val LINK_TIMEOUT_MILLIS = 30_000
         const val PROGRESS_INTERVAL_MILLIS = 100L
-        const val LAN_CONNECT_TIMEOUT_MILLIS = 1_000
+        const val LAN_CONNECT_TIMEOUT_MILLIS = 900
         const val GROUP_CONNECT_TIMEOUT_MILLIS = 3_000
         const val GROUP_CONNECT_WINDOW_MILLIS = 15_000L
     }

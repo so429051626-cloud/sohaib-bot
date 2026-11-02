@@ -82,6 +82,7 @@ object FrameCodec {
         val addresses = invitation.addresses
         writer.u8(addresses.size)
         addresses.forEach { writer.bytes(it) }
+        writer.u8(invitation.linkKind).u8(invitation.security)
         return seal(writer)
     }
 
@@ -134,7 +135,9 @@ object FrameCodec {
                 val count = reader.u8()
                 if (count > Protocol.MAX_LINK_ADDRESSES) throw ProtocolException("Too many addresses")
                 val addresses = List(count) { reader.bytes(4) }
-                Frame.Invite(LinkInvitation(session, key, name, network, passphrase, port, addresses))
+                val kind = if (reader.remaining >= 2) reader.u8() else if (network.isEmpty()) LinkInvitation.KIND_NONE else LinkInvitation.KIND_WIFI_DIRECT
+                val security = if (reader.remaining >= 1) reader.u8() else LinkInvitation.SECURITY_WPA2
+                Frame.Invite(LinkInvitation(session, key, name, network, passphrase, port, addresses, kind, security))
             }
             else -> throw ProtocolException("Unknown frame type")
         }

@@ -278,8 +278,24 @@ class LinkTest {
         assertTrue(decoded.hasDirectGroup)
         assertArrayEquals(keys.publicKey, decoded.toPairingRequest().publicKey)
 
+        val hotspot = LinkInvitation(
+            nonce = 3,
+            publicKey = keys.publicKey,
+            deviceName = "Pixel",
+            networkName = "AndroidShare_4821",
+            passphrase = "q8w7e6r5t4y3",
+            port = 40000,
+            addresses = listOf(byteArrayOf(192.toByte(), 168.toByte(), 49, 1)),
+            linkKind = LinkInvitation.KIND_HOTSPOT,
+            security = LinkInvitation.SECURITY_WPA3_TRANSITION,
+        )
+        val hotspotDecoded = (FrameCodec.parseQrText(FrameCodec.toQrText(FrameCodec.encodeInvite(hotspot))) as Frame.Invite).invitation
+        assertTrue(hotspotDecoded.hasHotspot && !hotspotDecoded.hasDirectGroup)
+        assertEquals("AndroidShare_4821", hotspotDecoded.networkName)
+        assertEquals(LinkInvitation.SECURITY_WPA3_TRANSITION, hotspotDecoded.security)
+
         val lanOnly = LinkInvitation(1, keys.publicKey, "Tab", "", "", 5000, emptyList())
         val lanDecoded = (FrameCodec.parseQrText(FrameCodec.toQrText(FrameCodec.encodeInvite(lanOnly))) as Frame.Invite).invitation
-        assertTrue(!lanDecoded.hasDirectGroup)
+        assertTrue(!lanDecoded.hasDirectGroup && !lanDecoded.hasHotspot)
     }
 }

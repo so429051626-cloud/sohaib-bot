@@ -113,6 +113,7 @@ fun ReceivePairingScreen(
                 runCatching { context.startActivity(intent) }
             }
             WifiHostStatus.LOCATION_OFF -> runCatching { context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }
+            WifiHostStatus.FAILED, WifiHostStatus.LAN_ONLY -> viewModel.refreshWifi()
             else -> Unit
         }
     }
@@ -187,6 +188,8 @@ fun ReceivePairingScreen(
                         pairingCode = pairingCode,
                         deviceName = viewModel.deviceName,
                         wifi = state.wifi,
+                        network = state.network,
+                        problem = state.wifiProblem,
                         onWifiAction = ::handleWifiAction,
                         onStartScanning = onStartScanning,
                     )
@@ -201,6 +204,8 @@ private fun PairingContent(
     pairingCode: androidx.compose.ui.graphics.ImageBitmap?,
     deviceName: String,
     wifi: WifiHostStatus,
+    network: HostedNetworkUi?,
+    problem: HostProblem?,
     onWifiAction: (WifiHostStatus) -> Unit,
     onStartScanning: () -> Unit,
 ) {
@@ -253,7 +258,7 @@ private fun PairingContent(
                     Pill(stringResource(R.string.pairing_single_use), icon = Icons.Rounded.Timer, color = MadixTheme.colors.success)
                 }
                 Spacer(Modifier.height(12.dp))
-                WifiStatusRow(wifi, onAction = onWifiAction)
+                WifiStatusRow(wifi, network, problem, onAction = onWifiAction)
             }
 
             Spacer(Modifier.height(16.dp))

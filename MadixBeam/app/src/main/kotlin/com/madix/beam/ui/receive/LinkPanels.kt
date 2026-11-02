@@ -147,18 +147,46 @@ fun LinkReceivingPanel(link: LinkUi, modifier: Modifier = Modifier) {
     )
 }
 
-/** One-line status of Wi-Fi Direct reception with an optional corrective action. */
+/** Status of the receiver's Wi-Fi network with its credentials and an optional corrective action. */
 @Composable
-fun WifiStatusRow(status: WifiHostStatus, onAction: (WifiHostStatus) -> Unit, modifier: Modifier = Modifier) {
+fun WifiStatusRow(
+    status: WifiHostStatus,
+    network: HostedNetworkUi?,
+    problem: HostProblem?,
+    onAction: (WifiHostStatus) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = MadixTheme.colors
-    val (icon: ImageVector, text: Int, action: Int?) = when (status) {
-        WifiHostStatus.CHECKING, WifiHostStatus.STARTING -> Triple(Icons.Rounded.WifiTethering, R.string.wifi_status_starting, null)
-        WifiHostStatus.READY -> Triple(Icons.Rounded.Wifi, R.string.wifi_status_ready, null)
-        WifiHostStatus.LAN_ONLY -> Triple(Icons.Rounded.Wifi, R.string.wifi_status_lan, null)
-        WifiHostStatus.PERMISSION_REQUIRED -> Triple(Icons.Rounded.WifiOff, R.string.wifi_status_permission, R.string.wifi_action_allow)
-        WifiHostStatus.WIFI_OFF -> Triple(Icons.Rounded.WifiOff, R.string.wifi_status_off, R.string.wifi_action_enable)
-        WifiHostStatus.LOCATION_OFF -> Triple(Icons.Rounded.LocationOff, R.string.wifi_status_location, R.string.wifi_action_location)
-        WifiHostStatus.UNSUPPORTED -> Triple(Icons.Rounded.QrCode2, R.string.wifi_status_unsupported, null)
+    val icon: ImageVector = when (status) {
+        WifiHostStatus.CHECKING, WifiHostStatus.STARTING -> Icons.Rounded.WifiTethering
+        WifiHostStatus.READY, WifiHostStatus.LAN_ONLY -> Icons.Rounded.Wifi
+        WifiHostStatus.LOCATION_OFF -> Icons.Rounded.LocationOff
+        WifiHostStatus.UNSUPPORTED -> Icons.Rounded.QrCode2
+        else -> Icons.Rounded.WifiOff
+    }
+    val text: String = when (status) {
+        WifiHostStatus.CHECKING, WifiHostStatus.STARTING -> stringResource(R.string.wifi_status_starting)
+        WifiHostStatus.READY -> stringResource(R.string.wifi_status_ready)
+        WifiHostStatus.LAN_ONLY -> stringResource(R.string.wifi_status_lan)
+        WifiHostStatus.PERMISSION_REQUIRED -> stringResource(R.string.wifi_status_permission)
+        WifiHostStatus.WIFI_OFF -> stringResource(R.string.wifi_status_off)
+        WifiHostStatus.LOCATION_OFF -> stringResource(R.string.wifi_status_location)
+        WifiHostStatus.UNSUPPORTED -> stringResource(R.string.wifi_status_unsupported)
+        WifiHostStatus.FAILED -> stringResource(
+            when (problem) {
+                HostProblem.TETHERING_ACTIVE -> R.string.wifi_problem_tethering
+                HostProblem.HOTSPOT_DISALLOWED -> R.string.wifi_problem_disallowed
+                HostProblem.NO_CHANNEL -> R.string.wifi_problem_channel
+                else -> R.string.wifi_problem_generic
+            },
+        )
+    }
+    val action: Int? = when (status) {
+        WifiHostStatus.PERMISSION_REQUIRED -> R.string.wifi_action_allow
+        WifiHostStatus.WIFI_OFF -> R.string.wifi_action_enable
+        WifiHostStatus.LOCATION_OFF -> R.string.wifi_action_location
+        WifiHostStatus.FAILED, WifiHostStatus.LAN_ONLY -> R.string.action_retry
+        else -> null
     }
     val tint = when (status) {
         WifiHostStatus.READY, WifiHostStatus.LAN_ONLY -> colors.success
@@ -166,24 +194,41 @@ fun WifiStatusRow(status: WifiHostStatus, onAction: (WifiHostStatus) -> Unit, mo
         WifiHostStatus.UNSUPPORTED -> colors.muted
         else -> colors.warning
     }
-    Row(
+    Column(
         modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .border(1.dp, tint.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
             .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start,
     ) {
-        if (status == WifiHostStatus.CHECKING || status == WifiHostStatus.STARTING) {
-            CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-        } else {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Start) {
+            if (status == WifiHostStatus.CHECKING || status == WifiHostStatus.STARTING) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f).padding(vertical = 6.dp))
+            if (action != null) {
+                TextButton(onClick = { onAction(status) }) { Text(stringResource(action)) }
+            }
         }
-        Spacer(Modifier.width(10.dp))
-        Text(stringResource(text), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f).padding(vertical = 6.dp))
-        if (action != null) {
-            TextButton(onClick = { onAction(status) }) { Text(stringResource(action)) }
+        if (status == WifiHostStatus.READY && network != null) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                stringResource(R.string.wifi_network_name, network.name),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 30.dp),
+            )
+            if (network.password.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.wifi_network_password, network.password),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 30.dp, bottom = 4.dp),
+                )
+            }
         }
     }
 }

@@ -49,7 +49,11 @@ import com.madix.beam.protocol.link.LinkReceiver
 import com.madix.beam.protocol.link.LinkSink
 import com.madix.beam.protocol.link.OfferDecision
 import com.madix.beam.protocol.link.OfferedEntry
+import android.net.wifi.WifiManager
 import com.madix.beam.wifi.GroupCredentials
+import com.madix.beam.wifi.HotspotException
+import com.madix.beam.wifi.LocalHotspot
+import kotlinx.coroutines.delay
 import com.madix.beam.wifi.LinkNetwork
 import com.madix.beam.wifi.WifiDirectController
 import com.madix.beam.wifi.WifiReadiness
@@ -105,7 +109,15 @@ data class LinkUi(
 }
 
 /** Availability of direct Wi-Fi reception on this device. */
-enum class WifiHostStatus { CHECKING, STARTING, READY, LAN_ONLY, PERMISSION_REQUIRED, WIFI_OFF, LOCATION_OFF, UNSUPPORTED }
+enum class WifiHostStatus { CHECKING, STARTING, READY, LAN_ONLY, PERMISSION_REQUIRED, WIFI_OFF, LOCATION_OFF, UNSUPPORTED, FAILED }
+
+/** Why the receiver could not create its Wi-Fi network. */
+enum class HostProblem { TETHERING_ACTIVE, HOTSPOT_DISALLOWED, NO_CHANNEL, GENERIC }
+
+/** The Wi-Fi network created by the receiver, shown so that it can also be joined manually. */
+data class HostedNetworkUi(val name: String, val password: String, val isHotspot: Boolean)
+
+private class HostedNetwork(val name: String, val password: String, val kind: Int, val security: Int)
 
 sealed interface ReceivePhase {
     /** Camera active, collecting frames. */
@@ -134,6 +146,8 @@ data class ReceiveUiState(
     val pairingCodeSeen: Boolean = false,
     val foreignText: String? = null,
     val wifi: WifiHostStatus = WifiHostStatus.CHECKING,
+    val network: HostedNetworkUi? = null,
+    val wifiProblem: HostProblem? = null,
 )
 
 class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
@@ -169,70 +183,135 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
     @Volatile
     private var activeLink: Socket? = null
 
+    private val hotspot = LocalHotspot(container.appContext)
+
     @Volatile
-    private var groupRequested = false
+    private var hosted: HostedNetwork? = null
+
+    @Volatile
+    private var hostingStarted = false
 
     init {
         startServer()
-        renderInvitation(includeGroup = false)
+        hotspot.onStopped = {
+            // The system stopped the hotspot (for example when tethering was enabled).
+            hosted = null
+            hostingStarted = false
+            viewModelScope.launch { refreshWifi() }
+        }
+        renderInvitation()
         refreshWifi()
         viewModelScope.launch(engineDispatcher) { consumeCodes() }
     }
 
     /**
-     * Re-evaluates Wi-Fi Direct availability; called when the screen resumes or a permission
-     * changes. Hosting starts as soon as every requirement is met.
+     * Re-evaluates Wi-Fi availability; called when the screen resumes or a permission changes.
+     * The receiver first creates a local Wi-Fi hotspot (a real network the sender joins after
+     * scanning the code) and falls back to a Wi-Fi Direct group when the hotspot is refused.
      */
     fun refreshWifi() {
         viewModelScope.launch {
-            if (groupRequested) {
-                renderInvitation(includeGroup = true)
+            if (hostingStarted) {
+                renderInvitation()
                 return@launch
             }
-            val readiness = wifi.readiness()
-            if (readiness != WifiReadiness.READY || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                val hasLan = serverSocket != null && LinkNetwork.lanAddresses().isNotEmpty()
-                val status = when (readiness) {
-                    WifiReadiness.PERMISSION_REQUIRED -> WifiHostStatus.PERMISSION_REQUIRED
-                    WifiReadiness.WIFI_OFF -> WifiHostStatus.WIFI_OFF
-                    WifiReadiness.LOCATION_OFF -> WifiHostStatus.LOCATION_OFF
-                    else -> if (hasLan) WifiHostStatus.LAN_ONLY else WifiHostStatus.UNSUPPORTED
-                }
-                uiState.update { it.copy(wifi = status) }
-                renderInvitation(includeGroup = false)
-                return@launch
+            when (wifi.hostReadiness()) {
+                WifiReadiness.READY -> Unit
+                WifiReadiness.PERMISSION_REQUIRED -> return@launch reportHostUnavailable(WifiHostStatus.PERMISSION_REQUIRED)
+                WifiReadiness.LOCATION_OFF -> return@launch reportHostUnavailable(WifiHostStatus.LOCATION_OFF)
+                else -> return@launch reportHostUnavailable(WifiHostStatus.UNSUPPORTED)
             }
-            groupRequested = true
-            uiState.update { it.copy(wifi = WifiHostStatus.STARTING) }
-            renderInvitation(includeGroup = true)
+            hostingStarted = true
+            uiState.update { it.copy(wifi = WifiHostStatus.STARTING, wifiProblem = null) }
+
+            // 1. Local hotspot: a real Wi-Fi network created by this device.
+            var hotspotProblem = HostProblem.GENERIC
             try {
-                wifi.createGroup(credentials)
-                uiState.update { it.copy(wifi = WifiHostStatus.READY) }
+                val info = hotspot.start()
+                hosted = HostedNetwork(info.ssid, info.passphrase, LinkInvitation.KIND_HOTSPOT, info.security)
+                onNetworkHosted()
+                return@launch
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: HotspotException) {
+                hotspotProblem = when (e.reason) {
+                    WifiManager.LocalOnlyHotspotCallback.ERROR_INCOMPATIBLE_MODE -> HostProblem.TETHERING_ACTIVE
+                    WifiManager.LocalOnlyHotspotCallback.ERROR_TETHERING_DISALLOWED -> HostProblem.HOTSPOT_DISALLOWED
+                    WifiManager.LocalOnlyHotspotCallback.ERROR_NO_CHANNEL -> HostProblem.NO_CHANNEL
+                    else -> HostProblem.GENERIC
+                }
             } catch (e: Exception) {
-                groupRequested = false
-                val hasLan = serverSocket != null && LinkNetwork.lanAddresses().isNotEmpty()
-                uiState.update { it.copy(wifi = if (hasLan) WifiHostStatus.LAN_ONLY else WifiHostStatus.UNSUPPORTED) }
-                renderInvitation(includeGroup = false)
+                hotspotProblem = HostProblem.GENERIC
             }
+
+            // 2. Wi-Fi Direct group, when the platform supports explicit credentials.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && wifi.readiness() == WifiReadiness.READY) {
+                try {
+                    wifi.createGroup(credentials)
+                    hosted = HostedNetwork(credentials.networkName, credentials.passphrase, LinkInvitation.KIND_WIFI_DIRECT, LinkInvitation.SECURITY_WPA2)
+                    onNetworkHosted()
+                    return@launch
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Reported below together with the hotspot problem.
+                }
+            }
+
+            hostingStarted = false
+            val hasLan = serverSocket != null && LinkNetwork.lanAddresses().isNotEmpty()
+            uiState.update {
+                it.copy(
+                    wifi = if (hasLan) WifiHostStatus.LAN_ONLY else WifiHostStatus.FAILED,
+                    wifiProblem = hotspotProblem,
+                    network = null,
+                )
+            }
+            renderInvitation()
         }
     }
 
+    private fun reportHostUnavailable(status: WifiHostStatus) {
+        val hasLan = serverSocket != null && LinkNetwork.lanAddresses().isNotEmpty()
+        val effective = if (status == WifiHostStatus.UNSUPPORTED && hasLan) WifiHostStatus.LAN_ONLY else status
+        uiState.update { it.copy(wifi = effective, network = null) }
+        renderInvitation()
+    }
+
+    private suspend fun onNetworkHosted() {
+        val network = hosted ?: return
+        uiState.update {
+            it.copy(
+                wifi = WifiHostStatus.READY,
+                wifiProblem = null,
+                network = HostedNetworkUi(network.name, network.password, network.kind == LinkInvitation.KIND_HOTSPOT),
+            )
+        }
+        // The new interface receives its address shortly after the network comes up.
+        renderInvitation()
+        delay(800)
+        renderInvitation()
+        delay(1500)
+        renderInvitation()
+    }
+
     /** Renders the code shown to senders: a Wi-Fi invitation, or a plain pairing code. */
-    private fun renderInvitation(includeGroup: Boolean) {
+    private fun renderInvitation() {
         viewModelScope.launch(Dispatchers.Default) {
             runCatching {
                 val server = serverSocket
+                val network = hosted
                 val frame = if (server != null) {
                     val invitation = LinkInvitation(
                         nonce = invitationNonce,
                         publicKey = keys.publicKey,
                         deviceName = deviceName,
-                        networkName = if (includeGroup) credentials.networkName else "",
-                        passphrase = if (includeGroup) credentials.passphrase else "",
+                        networkName = network?.name ?: "",
+                        passphrase = network?.password ?: "",
                         port = server.localPort,
-                        addresses = LinkNetwork.lanAddresses().map { it.address },
+                        addresses = LinkNetwork.lanAddresses(includeDirect = true).map { it.address },
+                        linkKind = network?.kind ?: LinkInvitation.KIND_NONE,
+                        security = network?.security ?: LinkInvitation.SECURITY_WPA2,
                     )
                     FrameCodec.encodeInvite(invitation)
                 } else {
@@ -479,7 +558,7 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
             runCatching { engine.close() }
             container.files.incomingWorkDir.listFiles()?.forEach { it.delete() }
             engine = newEngine()
-            uiState.update { ReceiveUiState(wifi = it.wifi) }
+            uiState.update { ReceiveUiState(wifi = it.wifi, network = it.network, wifiProblem = it.wifiProblem) }
         }
     }
 
@@ -620,6 +699,8 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
         codes.close()
         runCatching { serverSocket?.close() }
         runCatching { activeLink?.close() }
+        hotspot.onStopped = null
+        hotspot.stop()
         val controller = wifi
         container.applicationScope.launch {
             runCatching { controller.removeGroup() }

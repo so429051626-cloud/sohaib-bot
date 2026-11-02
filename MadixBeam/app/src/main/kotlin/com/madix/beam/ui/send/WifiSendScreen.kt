@@ -323,6 +323,7 @@ fun wifiFailureMessage(reason: WifiFailure): Int = when (reason) {
     WifiFailure.PERMISSION -> R.string.wifi_error_permission
     WifiFailure.WIFI_OFF -> R.string.wifi_error_off
     WifiFailure.LOCATION_OFF -> R.string.wifi_error_location
+    WifiFailure.NOT_JOINED -> R.string.wifi_error_not_joined
     WifiFailure.UNREACHABLE -> R.string.wifi_error_unreachable
     WifiFailure.BUSY -> R.string.wifi_error_busy
     WifiFailure.DECLINED -> R.string.wifi_error_declined
