@@ -46,6 +46,8 @@ data class TransferRecord(
     val frames: Long = 0,
     val profile: String? = null,
     val compressed: Boolean = false,
+    /** "WIFI" for direct Wi-Fi transfers, "QR" for optical transfers; null in older records. */
+    val method: String? = null,
 )
 
 /** Persists the transfer log as an atomically written JSON document. */

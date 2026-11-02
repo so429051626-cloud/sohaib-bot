@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Download
@@ -119,6 +120,14 @@ fun ReceiveResultScreen(viewModel: ReceiveViewModel, container: AppContainer, on
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Pill(stringResource(R.string.result_verified), icon = Icons.Rounded.Verified, color = MadixTheme.colors.success)
                             Pill(stringResource(modeLabel(result.mode)))
+                        }
+                        if (result.viaWifi && result.bytesPerSecond > 0) {
+                            Spacer(Modifier.height(8.dp))
+                            Pill(
+                                stringResource(R.string.result_speed, Format.speed(context, result.bytesPerSecond)),
+                                icon = Icons.Rounded.Bolt,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     }
                 }

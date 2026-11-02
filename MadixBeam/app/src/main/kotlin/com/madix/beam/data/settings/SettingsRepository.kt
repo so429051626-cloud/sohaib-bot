@@ -23,6 +23,15 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
+/** How content travels between the devices. */
+enum class TransferMethod {
+    /** Direct encrypted Wi-Fi link negotiated through the QR invitation. */
+    WIFI,
+
+    /** Optical transfer through animated QR codes only. */
+    QR,
+}
+
 /**
  * Photo re-encoding applied before sending: longest edge in pixels and WebP quality.
  * Smaller photos transfer proportionally faster through the optical link.
@@ -46,6 +55,7 @@ data class AppSettings(
     val maxBrightness: Boolean = true,
     val haptics: Boolean = true,
     val deviceName: String = "",
+    val transferMethod: TransferMethod = TransferMethod.WIFI,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -87,6 +97,7 @@ class SettingsRepository(private val context: Context) {
         maxBrightness = p[Keys.MAX_BRIGHTNESS] ?: true,
         haptics = p[Keys.HAPTICS] ?: true,
         deviceName = p[Keys.DEVICE_NAME] ?: "",
+        transferMethod = enumOrDefault(p[Keys.TRANSFER_METHOD], TransferMethod.WIFI),
     )
 
     private fun write(p: MutablePreferences, s: AppSettings) {
@@ -100,6 +111,7 @@ class SettingsRepository(private val context: Context) {
         p[Keys.MAX_BRIGHTNESS] = s.maxBrightness
         p[Keys.HAPTICS] = s.haptics
         p[Keys.DEVICE_NAME] = s.deviceName.take(40)
+        p[Keys.TRANSFER_METHOD] = s.transferMethod.name
     }
 
     private inline fun <reified T : Enum<T>> enumOrDefault(value: String?, default: T): T =
@@ -116,5 +128,6 @@ class SettingsRepository(private val context: Context) {
         val MAX_BRIGHTNESS = booleanPreferencesKey("max_brightness")
         val HAPTICS = booleanPreferencesKey("haptics")
         val DEVICE_NAME = stringPreferencesKey("device_name")
+        val TRANSFER_METHOD = stringPreferencesKey("transfer_method")
     }
 }

@@ -49,8 +49,9 @@ import kotlinx.coroutines.delay
 
 /** Scans the receiver's pairing code, then hands over to the broadcast screen. */
 @Composable
-fun SendPairingScreen(viewModel: SendViewModel, onBack: () -> Unit, onPaired: () -> Unit) {
+fun SendPairingScreen(viewModel: SendViewModel, onBack: () -> Unit, onPaired: () -> Unit, onWifi: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val wifi by viewModel.wifi.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
     var torch by remember { mutableStateOf(false) }
     var feedback by remember { mutableStateOf<PairingScanResult?>(null) }
@@ -62,6 +63,13 @@ fun SendPairingScreen(viewModel: SendViewModel, onBack: () -> Unit, onPaired: ()
         if (state.phase !is SendPhase.Composing) {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             onPaired()
+        }
+    }
+
+    LaunchedEffect(wifi.phase is WifiPhase.Idle) {
+        if (wifi.phase !is WifiPhase.Idle) {
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            onWifi()
         }
     }
 

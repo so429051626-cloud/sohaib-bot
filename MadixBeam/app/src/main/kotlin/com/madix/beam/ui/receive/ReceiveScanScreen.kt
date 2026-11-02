@@ -186,6 +186,7 @@ fun ReceiveScanScreen(
                             onSubmit = viewModel::submitPassword,
                         )
                         PanelKind.OPENING -> OpeningPanel((state.phase as? ReceivePhase.Opening)?.fraction ?: 0f)
+                        PanelKind.LINK -> (state.phase as? ReceivePhase.Linking)?.let { LinkReceivingPanel(it.link) }
                         PanelKind.FAILED -> FailedPanel(
                             reason = (state.phase as? ReceivePhase.Failed)?.reason ?: ReceiveFailure.UNKNOWN,
                             onRetry = viewModel::restart,
@@ -198,12 +199,13 @@ fun ReceiveScanScreen(
     }
 }
 
-private enum class PanelKind { SEARCHING, RECEIVING, PASSWORD, OPENING, FAILED }
+private enum class PanelKind { SEARCHING, RECEIVING, PASSWORD, OPENING, LINK, FAILED }
 
 private fun panelKind(state: ReceiveUiState): PanelKind = when (state.phase) {
     ReceivePhase.Scanning -> if (state.snapshot.header == null) PanelKind.SEARCHING else PanelKind.RECEIVING
     is ReceivePhase.NeedsPassword -> PanelKind.PASSWORD
     is ReceivePhase.Opening, is ReceivePhase.Done -> PanelKind.OPENING
+    is ReceivePhase.Linking -> PanelKind.LINK
     is ReceivePhase.Failed -> PanelKind.FAILED
 }
 
@@ -382,6 +384,7 @@ private fun FailedPanel(reason: ReceiveFailure, onRetry: () -> Unit, onClose: ()
                 when (reason) {
                     ReceiveFailure.INTEGRITY -> R.string.scan_failed_integrity
                     ReceiveFailure.STORAGE -> R.string.scan_failed_storage
+                    ReceiveFailure.CONNECTION -> R.string.scan_failed_connection
                     ReceiveFailure.UNKNOWN -> R.string.scan_failed_unknown
                 },
             ),

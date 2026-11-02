@@ -197,9 +197,55 @@ class PairingRequest(
     }
 }
 
+/**
+ * Invitation displayed by a receiver that accepts direct Wi-Fi transfers. Besides the
+ * receiver's public key it carries the credentials of the Wi-Fi Direct group the receiver
+ * hosts (empty when unavailable), the listening port and LAN addresses for devices that share
+ * a network.
+ */
+class LinkInvitation(
+    val nonce: Int,
+    publicKey: ByteArray,
+    val deviceName: String,
+    val networkName: String,
+    val passphrase: String,
+    val port: Int,
+    addresses: List<ByteArray>,
+) {
+    private val keyBytes = publicKey.copyOf()
+    private val addressBytes = addresses.map { it.copyOf() }
+
+    val publicKey: ByteArray get() = keyBytes.copyOf()
+
+    /** IPv4 addresses, four bytes each. */
+    val addresses: List<ByteArray> get() = addressBytes.map { it.copyOf() }
+
+    /** True when the receiver hosts a Wi-Fi Direct group that the sender can join. */
+    val hasDirectGroup: Boolean get() = networkName.isNotEmpty()
+
+    init {
+        if (keyBytes.isEmpty() || keyBytes.size > Protocol.MAX_PUBLIC_KEY_BYTES) throw ProtocolException("Invalid invitation key")
+        if (port !in 1..65535) throw ProtocolException("Invalid port")
+        if (addressBytes.size > Protocol.MAX_LINK_ADDRESSES || addressBytes.any { it.size != 4 }) {
+            throw ProtocolException("Invalid addresses")
+        }
+        if (networkName.isNotEmpty()) {
+            if (!networkName.startsWith("DIRECT-") || networkName.toByteArray(Charsets.UTF_8).size > Protocol.MAX_NETWORK_NAME_BYTES) {
+                throw ProtocolException("Invalid network name")
+            }
+            if (passphrase.length !in 8..63 || passphrase.any { it.code !in 0x20..0x7E }) {
+                throw ProtocolException("Invalid passphrase")
+            }
+        }
+    }
+
+    fun toPairingRequest(): PairingRequest = PairingRequest(nonce, keyBytes, deviceName)
+}
+
 /** Decoded frame. */
 sealed interface Frame {
     class Header(val header: TransferHeader) : Frame
     class Data(val symbol: DataSymbol) : Frame
     class Pairing(val request: PairingRequest) : Frame
+    class Invite(val invitation: LinkInvitation) : Frame
 }

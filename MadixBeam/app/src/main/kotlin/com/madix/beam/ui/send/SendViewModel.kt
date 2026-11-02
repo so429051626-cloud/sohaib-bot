@@ -44,7 +44,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Build
+import com.madix.beam.data.settings.TransferMethod
+import com.madix.beam.protocol.frame.LinkInvitation
+import com.madix.beam.protocol.link.LinkException
+import com.madix.beam.protocol.link.LinkSender
+import com.madix.beam.wifi.GroupCredentials
+import com.madix.beam.wifi.LinkNetwork
+import com.madix.beam.wifi.WifiDirectController
+import com.madix.beam.wifi.WifiDirectException
+import com.madix.beam.wifi.WifiReadiness
 import java.io.FileNotFoundException
+import java.net.InetAddress
+import java.net.Socket
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
@@ -60,6 +72,9 @@ enum class SendFailure { TOO_LARGE, UNREADABLE, INVALID_PAIRING, STORAGE, UNKNOW
 
 data class SendUiState(
     val items: List<PickedItem> = emptyList(),
+    val method: TransferMethod = TransferMethod.WIFI,
+    /** Set when a Wi-Fi transfer had to continue with QR codes. */
+    val fellBackToQr: Boolean = false,
     val security: SecurityMode = SecurityMode.PAIRED,
     val password: String = "",
     val profile: TransferProfile = TransferProfile.DEFAULT,
@@ -70,16 +85,23 @@ data class SendUiState(
     val totalBytes: Long get() = items.sumOf { it.size.coerceAtLeast(0) }
     val hasImages: Boolean get() = items.any { it.isImage }
     val passwordValid: Boolean get() = password.length >= MIN_PASSWORD_LENGTH
-    val tooLarge: Boolean get() = totalBytes > Protocol.MAX_PAYLOAD_BYTES
+    val tooLarge: Boolean get() = method == TransferMethod.QR && totalBytes > Protocol.MAX_PAYLOAD_BYTES
     val canContinue: Boolean
         get() = items.isNotEmpty() && !tooLarge && !loadingItems &&
-            (security != SecurityMode.PASSWORD || passwordValid)
+            (method == TransferMethod.WIFI || security != SecurityMode.PASSWORD || passwordValid)
 
     /** Rough duration estimate before compression and photo optimisation. */
-    fun estimatedSeconds(): Long = profile.estimateSeconds(totalBytes + 2048)
+    fun estimatedSeconds(): Long = if (method == TransferMethod.WIFI) {
+        (totalBytes / WIFI_ESTIMATE_BYTES_PER_SECOND).coerceAtLeast(1)
+    } else {
+        profile.estimateSeconds(totalBytes + 2048)
+    }
 
     companion object {
         const val MIN_PASSWORD_LENGTH = 6
+
+        /** Conservative Wi-Fi Direct throughput used for estimates. */
+        const val WIFI_ESTIMATE_BYTES_PER_SECOND = 20L * 1024 * 1024
     }
 }
 
@@ -116,10 +138,40 @@ data class BroadcastUi(
 /** Pairing scan outcome used for user feedback. */
 enum class PairingScanResult { ACCEPTED, NOT_PAIRING, INVALID }
 
+enum class ConnectStep { CONNECTING, JOINING, SECURING }
+
+enum class WifiFailure { UNSUPPORTED, PERMISSION, WIFI_OFF, LOCATION_OFF, UNREACHABLE, BUSY, DECLINED, STORAGE, INTEGRITY, INTERRUPTED, UNREADABLE }
+
+sealed interface WifiPhase {
+    data object Idle : WifiPhase
+    data class Connecting(val step: ConnectStep) : WifiPhase
+    data class Sending(
+        val bytesDone: Long,
+        val bytesTotal: Long,
+        val bytesPerSecond: Double,
+        val entryName: String,
+        val entryIndex: Int,
+        val entryCount: Int,
+    ) : WifiPhase
+
+    data class Completed(val totalBytes: Long, val durationMillis: Long, val bytesPerSecond: Double, val itemCount: Int) : WifiPhase
+    data class Failed(val reason: WifiFailure) : WifiPhase
+}
+
+data class WifiSendUi(
+    val phase: WifiPhase = WifiPhase.Idle,
+    val peerName: String? = null,
+    val verificationCode: String? = null,
+)
+
+/** A requirement for the direct Wi-Fi link is not met. */
+private class WifiUnavailable(val reason: WifiFailure) : Exception(reason.name)
+
 class SendViewModel(private val container: AppContainer) : ViewModel() {
 
     private val uiState = MutableStateFlow(
         SendUiState(
+            method = container.initialSettings.transferMethod,
             security = container.initialSettings.defaultSecurity,
             profile = container.initialSettings.profile,
             imageQuality = container.initialSettings.imageQuality,
@@ -129,6 +181,20 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
 
     private val broadcastState = MutableStateFlow(BroadcastUi())
     val broadcast: StateFlow<BroadcastUi> = broadcastState.asStateFlow()
+
+    private val wifiState = MutableStateFlow(WifiSendUi())
+    val wifi: StateFlow<WifiSendUi> = wifiState.asStateFlow()
+
+    private val wifiController by lazy { WifiDirectController(container.appContext) }
+
+    @Volatile
+    private var wifiJob: Job? = null
+
+    @Volatile
+    private var wifiSocket: Socket? = null
+
+    @Volatile
+    private var lastInvitation: LinkInvitation? = null
 
     private val paused = MutableStateFlow(false)
     private val fps = MutableStateFlow(TransferProfile.DEFAULT.defaultFps)
@@ -148,7 +214,12 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
             val settings = container.settings.current()
             uiState.update {
                 if (it.phase == SendPhase.Composing && it.items.isEmpty()) {
-                    it.copy(security = settings.defaultSecurity, profile = settings.profile, imageQuality = settings.imageQuality)
+                    it.copy(
+                        method = settings.transferMethod,
+                        security = settings.defaultSecurity,
+                        profile = settings.profile,
+                        imageQuality = settings.imageQuality,
+                    )
                 } else {
                     it
                 }
@@ -200,6 +271,8 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
 
     fun dismissFailure() = uiState.update { it.copy(phase = SendPhase.Composing) }
 
+    fun setMethod(method: TransferMethod) = uiState.update { it.copy(method = method) }
+
     // endregion
 
     // region Pairing
@@ -217,20 +290,224 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
                 result = PairingScanResult.INVALID
                 continue
             }
-            if (frame is Frame.Pairing) {
-                if (!EphemeralKeyPair.isValidPublicKey(frame.request.publicKey)) {
-                    result = PairingScanResult.INVALID
-                    continue
-                }
-                if (pairingAccepted.compareAndSet(false, true)) {
-                    viewModelScope.launch { beginTransfer(frame.request) }
-                    return PairingScanResult.ACCEPTED
-                }
-                return null
+            val request = when (frame) {
+                is Frame.Invite -> frame.invitation.toPairingRequest()
+                is Frame.Pairing -> frame.request
+                else -> null
             }
-            result = PairingScanResult.NOT_PAIRING
+            if (request == null) {
+                result = PairingScanResult.NOT_PAIRING
+                continue
+            }
+            if (!EphemeralKeyPair.isValidPublicKey(request.publicKey)) {
+                result = PairingScanResult.INVALID
+                continue
+            }
+            if (!pairingAccepted.compareAndSet(false, true)) return null
+            val invitation = (frame as? Frame.Invite)?.invitation
+            viewModelScope.launch {
+                when {
+                    uiState.value.method == TransferMethod.WIFI && invitation != null -> beginWifiTransfer(invitation)
+                    uiState.value.method == TransferMethod.WIFI -> {
+                        // The receiver cannot accept direct transfers; continue optically.
+                        uiState.update { it.copy(security = SecurityMode.PAIRED, fellBackToQr = true) }
+                        beginTransfer(request)
+                    }
+                    else -> beginTransfer(request)
+                }
+            }
+            return PairingScanResult.ACCEPTED
         }
         return result
+    }
+
+    // endregion
+
+    // region Direct Wi-Fi transfer
+
+    /** Connects to the receiver described by [invitation] and streams the selected items. */
+    fun beginWifiTransfer(invitation: LinkInvitation) {
+        if (wifiJob?.isActive == true) return
+        lastInvitation = invitation
+        val snapshot = uiState.value
+        wifiState.value = WifiSendUi(phase = WifiPhase.Connecting(ConnectStep.CONNECTING), peerName = invitation.deviceName)
+        wifiJob = viewModelScope.launch(Dispatchers.IO) {
+            var socket: Socket? = null
+            var joinedGroup = false
+            var stage = WifiFailure.UNREACHABLE
+            try {
+                socket = connectToReceiver(invitation) { joinedGroup = true }
+                wifiSocket = socket
+                stage = WifiFailure.INTERRUPTED
+                socket.soTimeout = LINK_TIMEOUT_MILLIS
+                wifiState.update { it.copy(phase = WifiPhase.Connecting(ConnectStep.SECURING)) }
+                val settings = container.settings.current()
+                val sources = snapshot.items.map { SourceResolver.toSource(container.appContext, it, ImageQuality.ORIGINAL) }
+                var sendStart = 0L
+                var lastPublish = 0L
+                val result = LinkSender(invitation.publicKey, container.settings.effectiveDeviceName(settings)).send(
+                    input = socket.getInputStream().buffered(16 * 1024),
+                    output = socket.getOutputStream().buffered(256 * 1024),
+                    sources = sources,
+                    listener = { progress ->
+                        val now = SystemClock.elapsedRealtime()
+                        if (sendStart == 0L) sendStart = now
+                        if (now - lastPublish >= PROGRESS_INTERVAL_MILLIS) {
+                            lastPublish = now
+                            val seconds = (now - sendStart).coerceAtLeast(1) / 1000.0
+                            wifiState.update {
+                                it.copy(
+                                    phase = WifiPhase.Sending(
+                                        bytesDone = progress.bytesDone,
+                                        bytesTotal = progress.totalBytes,
+                                        bytesPerSecond = progress.bytesDone / seconds,
+                                        entryName = progress.entryName,
+                                        entryIndex = progress.entryIndex,
+                                        entryCount = progress.entryCount,
+                                    ),
+                                )
+                            }
+                        }
+                    },
+                    onHandshake = { code, receiverName ->
+                        sendStart = SystemClock.elapsedRealtime()
+                        wifiState.update {
+                            it.copy(
+                                verificationCode = code,
+                                peerName = receiverName.ifBlank { invitation.deviceName },
+                                phase = WifiPhase.Sending(0, sources.sumOf { s -> s.sizeHint }.takeIf { sources.all { s -> s.sizeHint >= 0 } } ?: -1L, 0.0, "", 0, sources.size),
+                            )
+                        }
+                    },
+                )
+                val duration = (SystemClock.elapsedRealtime() - sendStart).coerceAtLeast(1)
+                val rate = result.totalBytes / (duration / 1000.0)
+                runCatching {
+                    container.history.add(
+                        TransferRecord(
+                            id = UUID.randomUUID().toString(),
+                            direction = TransferDirection.SENT,
+                            timestamp = System.currentTimeMillis(),
+                            items = result.entries.map {
+                                HistoryItem(name = it.name, mimeType = it.mimeType, size = it.size, sha256 = it.sha256Hex, isText = it.kind == EntryKind.TEXT)
+                            },
+                            totalBytes = result.totalBytes,
+                            sealedBytes = result.totalBytes,
+                            durationMillis = duration,
+                            security = SecurityMode.PAIRED.name,
+                            peerName = result.receiverName.ifBlank { invitation.deviceName },
+                            verificationCode = result.verificationCode,
+                            method = TransferMethod.WIFI.name,
+                        ),
+                    )
+                }
+                wifiState.update {
+                    it.copy(phase = WifiPhase.Completed(result.totalBytes, duration, rate, result.entries.size))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: WifiUnavailable) {
+                wifiState.update { it.copy(phase = WifiPhase.Failed(e.reason)) }
+            } catch (e: LinkException) {
+                val reason = when (e.reason) {
+                    LinkException.Reason.BUSY -> WifiFailure.BUSY
+                    LinkException.Reason.DECLINED -> WifiFailure.DECLINED
+                    LinkException.Reason.INSUFFICIENT_STORAGE -> WifiFailure.STORAGE
+                    LinkException.Reason.INTEGRITY -> WifiFailure.INTEGRITY
+                    else -> WifiFailure.INTERRUPTED
+                }
+                wifiState.update { it.copy(phase = WifiPhase.Failed(reason)) }
+            } catch (e: FileNotFoundException) {
+                wifiState.update { it.copy(phase = WifiPhase.Failed(WifiFailure.UNREADABLE)) }
+            } catch (e: SecurityException) {
+                wifiState.update { it.copy(phase = WifiPhase.Failed(WifiFailure.UNREADABLE)) }
+            } catch (e: Exception) {
+                wifiState.update { it.copy(phase = WifiPhase.Failed(stage)) }
+            } finally {
+                runCatching { socket?.close() }
+                wifiSocket = null
+                if (joinedGroup) {
+                    withContext(NonCancellable) { runCatching { wifiController.removeGroup() } }
+                }
+            }
+        }
+    }
+
+    /**
+     * Opens a connection to the receiver: first over a shared Wi-Fi network (instant), then by
+     * joining the receiver's Wi-Fi Direct group with the credentials from its invitation.
+     */
+    private suspend fun connectToReceiver(invitation: LinkInvitation, onJoined: () -> Unit): Socket {
+        val wifiNetwork = LinkNetwork.wifiNetwork(container.appContext)
+        for (raw in invitation.addresses) {
+            val address = InetAddress.getByAddress(raw)
+            try {
+                return LinkNetwork.connect(address, invitation.port, LAN_CONNECT_TIMEOUT_MILLIS, wifiNetwork)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Not on the same network; try the next route.
+            }
+        }
+        if (!invitation.hasDirectGroup) throw WifiUnavailable(WifiFailure.UNREACHABLE)
+        when (wifiController.readiness()) {
+            WifiReadiness.READY -> Unit
+            WifiReadiness.UNSUPPORTED -> throw WifiUnavailable(WifiFailure.UNSUPPORTED)
+            WifiReadiness.PERMISSION_REQUIRED -> throw WifiUnavailable(WifiFailure.PERMISSION)
+            WifiReadiness.WIFI_OFF -> throw WifiUnavailable(WifiFailure.WIFI_OFF)
+            WifiReadiness.LOCATION_OFF -> throw WifiUnavailable(WifiFailure.LOCATION_OFF)
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) throw WifiUnavailable(WifiFailure.UNSUPPORTED)
+        wifiState.update { it.copy(phase = WifiPhase.Connecting(ConnectStep.JOINING)) }
+        val owner = try {
+            wifiController.joinGroup(GroupCredentials(invitation.networkName, invitation.passphrase))
+        } catch (e: WifiDirectException) {
+            throw WifiUnavailable(WifiFailure.UNREACHABLE)
+        }
+        onJoined()
+        wifiState.update { it.copy(phase = WifiPhase.Connecting(ConnectStep.CONNECTING)) }
+        val deadline = SystemClock.elapsedRealtime() + GROUP_CONNECT_WINDOW_MILLIS
+        while (SystemClock.elapsedRealtime() < deadline) {
+            try {
+                return LinkNetwork.connect(owner, invitation.port, GROUP_CONNECT_TIMEOUT_MILLIS)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                delay(500)
+            }
+        }
+        throw WifiUnavailable(WifiFailure.UNREACHABLE)
+    }
+
+    fun retryWifi() {
+        val invitation = lastInvitation ?: return
+        if (wifiJob?.isActive == true) return
+        beginWifiTransfer(invitation)
+    }
+
+    /** Abandons the Wi-Fi attempt and transmits the same items through QR codes instead. */
+    fun fallBackToQr() {
+        val invitation = lastInvitation ?: return
+        cancelWifi()
+        uiState.update { it.copy(security = SecurityMode.PAIRED, fellBackToQr = true) }
+        pairingAccepted.set(true)
+        beginTransfer(invitation.toPairingRequest())
+    }
+
+    /** Stops a running Wi-Fi transfer and returns to the composer. */
+    fun cancelWifi() {
+        wifiJob?.cancel()
+        runCatching { wifiSocket?.close() }
+        wifiState.value = WifiSendUi()
+        pairingAccepted.set(false)
+    }
+
+    /** Clears the composer after a delivered Wi-Fi transfer. */
+    fun finishWifi(onDone: () -> Unit) {
+        wifiState.value = WifiSendUi()
+        pairingAccepted.set(false)
+        uiState.update { it.copy(items = emptyList(), password = "", fellBackToQr = false, phase = SendPhase.Composing) }
+        onDone()
     }
 
     // endregion
@@ -455,6 +732,15 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     override fun onCleared() {
+        wifiJob?.cancel()
+        runCatching { wifiSocket?.close() }
+        if (lastInvitation != null) {
+            val controller = wifiController
+            container.applicationScope.launch {
+                runCatching { controller.removeGroup() }
+                controller.close()
+            }
+        }
         prepareJob?.cancel()
         stopBroadcast()
         releasePrepared()
@@ -462,4 +748,12 @@ class SendViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     // endregion
+
+    private companion object {
+        const val LINK_TIMEOUT_MILLIS = 30_000
+        const val PROGRESS_INTERVAL_MILLIS = 100L
+        const val LAN_CONNECT_TIMEOUT_MILLIS = 1_000
+        const val GROUP_CONNECT_TIMEOUT_MILLIS = 3_000
+        const val GROUP_CONNECT_WINDOW_MILLIS = 15_000L
+    }
 }

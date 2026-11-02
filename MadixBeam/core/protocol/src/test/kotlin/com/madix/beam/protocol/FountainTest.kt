@@ -83,7 +83,7 @@ class FountainTest {
                     )
                 }
                 is Frame.Data -> decoder?.accept(parsed.symbol.segment, parsed.symbol.symbolId, parsed.symbol.payload)
-                is Frame.Pairing -> error("unexpected")
+                is Frame.Pairing, is Frame.Invite -> error("unexpected")
             }
             if (decoder?.isComplete == true) break
         }

@@ -35,9 +35,9 @@
 
     <!-- شاشة البداية والتعريف -->
     <string name="splash_tagline">انقل كل شيء عبر الضوء</string>
-    <string name="splash_footer">تشفير تام بين الطرفين · يعمل دون اتصال</string>
+    <string name="splash_footer">تشفير تام بين الطرفين · لا يلزم إنترنت</string>
     <string name="onboarding_title_1">النقل عبر الضوء</string>
-    <string name="onboarding_body_1">ينقل Madix Beam الصور ومقاطع الفيديو والمستندات والرسائل بين الأجهزة باستخدام رموز QR متحركة، دون الحاجة إلى اتصال بالإنترنت أو شبكة Wi-Fi أو تقنية Bluetooth.</string>
+    <string name="onboarding_body_1">ينقل Madix Beam الصور ومقاطع الفيديو والمستندات والرسائل بين الأجهزة بسرعة فائقة عبر اتصال Wi-Fi مباشر يُنشأ بمسح رمز QR واحد، كما يعمل عبر رموز QR المتحركة وحدها، ولا يستخدم الإنترنت مطلقًا.</string>
     <string name="onboarding_title_2">تشفير تام بين الطرفين</string>
     <string name="onboarding_body_2">تُحمى كل عملية نقل بمعيار AES-256-GCM، ويُنشئ اقتران الأجهزة مفتاحًا فريدًا لا يعرفه سوى الجهازين المعنيين.</string>
     <string name="onboarding_title_3">موثوقية في التصميم</string>
@@ -55,7 +55,7 @@
     <!-- الرئيسية -->
     <string name="home_subtitle">نقل آمن للملفات عبر الضوء</string>
     <string name="home_hero_title">انقل كل شيء عبر الضوء</string>
-    <string name="home_hero_body">دون إنترنت ودون كابلات؛ كل ما يلزم شاشتان وكاميرا.</string>
+    <string name="home_hero_body">امسح مرة واحدة وانقل بسرعة Wi-Fi Direct، دون إنترنت أو كابلات أو حسابات.</string>
     <string name="badge_aes">AES-256</string>
     <string name="badge_offline">دون اتصال</string>
     <string name="home_send">إرسال</string>
@@ -73,7 +73,7 @@
     <string name="home_recent">أحدث عمليات النقل</string>
     <string name="home_empty_title">لا توجد عمليات نقل بعد</string>
     <string name="home_empty_body">ستظهر عمليات النقل المكتملة هنا.</string>
-    <string name="home_privacy_note">تجري جميع العمليات على هذا الجهاز</string>
+    <string name="home_privacy_note">لا يغادر أي شيء أجهزتك</string>
     <string name="record_subtitle_sent">مُرسَل · %1$s · %2$s</string>
     <string name="record_subtitle_received">مُستلَم · %1$s · %2$s</string>
     <string name="history_untitled">عملية نقل</string>
@@ -167,11 +167,10 @@
     <string name="pairing_code_title">رمز الاقتران</string>
     <string name="pairing_code_body">يحتوي هذا الرمز على مفتاح عام لمرة واحدة، ولا يمكن استخدامه لقراءة أي بيانات.</string>
     <string name="pairing_single_use">لمرة واحدة</string>
-    <string name="receive_step_1">اختر «اقتران الأجهزة» على الجهاز المرسِل وامسح هذا الرمز.</string>
-    <string name="receive_step_2">اضغط «بدء الاستقبال» ووجّه هذه الكاميرا نحو شاشة الجهاز المرسِل.</string>
+    <string name="receive_step_1">على الجهاز المرسِل، اختر «إرسال» وأضف العناصر ثم امسح هذا الرمز.</string>
+    <string name="receive_step_2">يبدأ النقل تلقائيًا عبر اتصال Wi-Fi Direct مشفّر.</string>
     <string name="receive_step_3">تأكّد من ظهور رمز التحقق نفسه على الجهازين.</string>
-    <string name="receive_direct_note">في عمليات النقل المحمية بكلمة مرور أو غير المشفرة، ابدأ الاستقبال مباشرة.</string>
-    <string name="receive_start">بدء الاستقبال</string>
+    <string name="receive_direct_note">إذا اختار المرسِل رموز QR، فاضغط «الاستقبال عبر رموز QR» أدناه.</string>
     <string name="camera_rationale_receive">يلزم الوصول إلى الكاميرا لقراءة رموز النقل، وتُعالَج الصور على هذا الجهاز فقط دون حفظها.</string>
     <string name="camera_permission_title">يلزم الوصول إلى الكاميرا</string>
     <string name="camera_permission_grant">السماح بالوصول إلى الكاميرا</string>
@@ -269,10 +268,10 @@
 
     <!-- حول التطبيق -->
     <string name="about_title">حول Madix Beam</string>
-    <string name="about_body">ينقل Madix Beam الملفات بين الأجهزة حصرًا عبر رموز QR المتحركة، دون الحاجة إلى أي اتصال بالشبكة، ويعمل بالكامل دون إنترنت مع حماية كل عملية نقل بأحدث تقنيات التشفير.</string>
+    <string name="about_body">ينقل Madix Beam الملفات مباشرة بين الأجهزة؛ إذ يُنشئ مسح رمز QR واحد اتصال Wi-Fi Direct مشفّرًا بسرعة فائقة، وتوفر رموز QR المتحركة بديلًا ضوئيًا بالكامل، دون أي اتصال بالإنترنت أو بأي خادم.</string>
     <string name="about_features">الإمكانات</string>
-    <string name="feature_offline_title">يعمل دون اتصال بالكامل</string>
-    <string name="feature_offline_body">لا يملك التطبيق إذن الوصول إلى الإنترنت، وتنتقل البيانات عبر الشاشة والكاميرا فقط.</string>
+    <string name="feature_offline_title">بلا إنترنت وبلا خوادم</string>
+    <string name="feature_offline_body">تنتقل البيانات بين جهازيك فقط، عبر Wi-Fi Direct أو عبر الشاشة والكاميرا، ولا يُرفع أي شيء إلى أي مكان.</string>
     <string name="feature_e2e_title">تشفير تام بين الطرفين</string>
     <string name="feature_e2e_body">يعتمد اقتران الأجهزة على تبادل مفاتيح ECDH P-256 مؤقتة وتشفير AES-256-GCM، مع رمز تحقق من ستة أرقام.</string>
     <string name="feature_fountain_title">ترميز نافوري غير محدود المعدل</string>
@@ -294,7 +293,7 @@
     <string name="privacy_section_data_title">المعلومات المجمّعة</string>
     <string name="privacy_section_data_body">لا يجمع Madix Beam أي معلومات شخصية، ولا يخزنها على خوادم بعيدة، ولا يبيعها أو يشاركها. ولا يتضمن التطبيق أي مكونات للتحليلات أو الإعلانات أو التتبع.</string>
     <string name="privacy_section_network_title">الوصول إلى الشبكة</string>
-    <string name="privacy_section_network_body">لا يطلب التطبيق إذن الوصول إلى الإنترنت، وتتم عمليات النقل حصرًا بين شاشة جهاز وكاميرا جهاز آخر.</string>
+    <string name="privacy_section_network_body">لا يتصل Madix Beam بالإنترنت أو بأي خادم مطلقًا. ويشترط أندرويد إذن الشبكة لأي اتصال، بما في ذلك اتصال Wi-Fi المباشر بين جهازيك، ويستخدمه التطبيق حصرًا لهذا الاتصال المحلي، مع تعطيل خدمات الإبلاغ عن الاستخدام المضمّنة في المكونات الخارجية.</string>
     <string name="privacy_section_camera_title">الكاميرا</string>
     <string name="privacy_section_camera_body">تُستخدم الكاميرا أثناء مسح الرموز فقط، وتُحلَّل الصور في ذاكرة الجهاز دون حفظها أو إرسالها.</string>
     <string name="privacy_section_storage_title">البيانات المخزنة</string>
@@ -312,6 +311,61 @@
     <string name="toast_save_failed">تعذّر حفظ بعض الملفات.</string>
     <string name="toast_storage_permission">يلزم إذن الوصول إلى التخزين لحفظ الملفات على الجهاز.</string>
 
+    <string name="receive_start_qr">الاستقبال عبر رموز QR</string>
+    <string name="receive_ready_again">الاستعداد لعملية نقل جديدة</string>
+    <string name="scan_failed_connection">انقطع الاتصال بالجهاز المرسِل. قرّب الجهازين من بعضهما وحاول مجددًا.</string>
+    <string name="link_badge">Wi-Fi Direct · مشفّر</string>
+    <string name="link_remaining">المتبقي %1$s</string>
+    <string name="link_current_item">العنصر %1$d من %2$d · %3$s</string>
+    <string name="link_encrypted_code">رمز التحقق</string>
+    <string name="link_receiving_title">جارٍ الاستقبال</string>
+    <string name="wifi_status_starting">جارٍ تجهيز اتصال Wi-Fi Direct…</string>
+    <string name="wifi_status_ready">اتصال Wi-Fi Direct جاهز للنقل فائق السرعة.</string>
+    <string name="wifi_status_lan">جاهز للاستقبال عبر شبكة Wi-Fi المشتركة.</string>
+    <string name="wifi_status_permission">اسمح بالوصول إلى الأجهزة القريبة للنقل فائق السرعة عبر Wi-Fi.</string>
+    <string name="wifi_status_off">شغّل Wi-Fi للنقل فائق السرعة، ولا يلزم اتصال بالإنترنت.</string>
+    <string name="wifi_status_location">يتطلب إصدار أندرويد هذا تفعيل خدمات الموقع لاستخدام Wi-Fi Direct.</string>
+    <string name="wifi_status_unsupported">لا يتوفر Wi-Fi Direct على هذا الجهاز، وتبقى رموز QR متاحة.</string>
+    <string name="wifi_action_allow">سماح</string>
+    <string name="wifi_action_enable">تشغيل</string>
+    <string name="wifi_action_location">الإعدادات</string>
+    <string name="send_method">طريقة النقل</string>
+    <string name="method_wifi">Wi-Fi Direct</string>
+    <string name="method_wifi_body">اتصال مباشر فائق السرعة بين الجهازين دون الحاجة إلى إنترنت أو راوتر.</string>
+    <string name="method_fastest">الأسرع</string>
+    <string name="method_qr">رموز QR</string>
+    <string name="method_qr_body">النقل عبر الشاشة والكاميرا فقط، دون أي اتصال لاسلكي.</string>
+    <string name="method_wifi_note">مشفّر تشفيرًا تامًا بين الطرفين تلقائيًا، وتُرسَل الصور ومقاطع الفيديو بجودتها الأصلية.</string>
+    <string name="send_continue_scan">امسح رمز الجهاز المستقبِل</string>
+    <string name="wifi_send_title">Wi-Fi Direct</string>
+    <string name="wifi_sending_title">جارٍ الإرسال</string>
+    <string name="wifi_to">إلى %1$s</string>
+    <string name="wifi_step_connecting">جارٍ الاتصال</string>
+    <string name="wifi_step_joining">جارٍ الانضمام إلى الجهاز المستقبِل</string>
+    <string name="wifi_step_securing">جارٍ تأمين الاتصال</string>
+    <string name="wifi_connecting_body">يجري إنشاء اتصال Wi-Fi مباشر ومشفّر، ويستغرق ذلك عادةً بضع ثوانٍ.</string>
+    <string name="wifi_cancel_title">هل تريد إيقاف النقل؟</string>
+    <string name="wifi_cancel_body">لن تصل العناصر التي لم يكتمل تسليمها إلى الجهاز المستقبِل.</string>
+    <string name="wifi_delivered_title">تم التسليم</string>
+    <string name="wifi_delivered_to">استلمها %1$s وتحقق منها</string>
+    <string name="wifi_delivered_body">اكتمل خلال %1$s بتشفير تام بين الطرفين.</string>
+    <string name="wifi_stat_speed">متوسط السرعة</string>
+    <string name="wifi_failed_title">تعذّر إكمال النقل عبر Wi-Fi</string>
+    <string name="wifi_use_qr">الإرسال عبر رموز QR بدلًا من ذلك</string>
+    <string name="action_retry">إعادة المحاولة</string>
+    <string name="wifi_error_unsupported">لا يتوفر Wi-Fi Direct على هذا الجهاز. يمكنك الإرسال عبر رموز QR بدلًا من ذلك.</string>
+    <string name="wifi_error_permission">يلزم الوصول إلى الأجهزة القريبة للاتصال بالجهاز المستقبِل.</string>
+    <string name="wifi_error_off">شبكة Wi-Fi متوقفة. يرجى تشغيلها، ولا يلزم اتصال بالإنترنت.</string>
+    <string name="wifi_error_location">يتطلب إصدار أندرويد هذا تفعيل خدمات الموقع لاستخدام Wi-Fi Direct.</string>
+    <string name="wifi_error_unreachable">تعذّر الوصول إلى الجهاز المستقبِل. أبقِ شاشة الاستقبال مفتوحة وقرّب الجهازين.</string>
+    <string name="wifi_error_busy">الجهاز المستقبِل مشغول بعملية نقل أخرى.</string>
+    <string name="wifi_error_declined">رفض الجهاز المستقبِل عملية النقل.</string>
+    <string name="wifi_error_storage">لا تتوفر مساحة تخزين كافية على الجهاز المستقبِل.</string>
+    <string name="wifi_error_integrity">لم تجتز البيانات التحقق على الجهاز المستقبِل. يرجى المحاولة مجددًا.</string>
+    <string name="wifi_error_interrupted">انقطع الاتصال. قرّب الجهازين من بعضهما وحاول مجددًا.</string>
+    <string name="result_speed">Wi-Fi Direct · %1$s</string>
+    <string name="settings_default_method">طريقة النقل الافتراضية</string>
+    <string name="detail_method">الطريقة</string>
     <plurals name="item_count">
         <item quantity="zero">لا عناصر</item>
         <item quantity="one">عنصر واحد</item>

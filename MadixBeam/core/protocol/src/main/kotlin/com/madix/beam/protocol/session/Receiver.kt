@@ -118,7 +118,7 @@ class ReceiverEngine(
         }
         framesDecoded++
         return when (frame) {
-            is Frame.Pairing -> Event.PairingCode
+            is Frame.Pairing, is Frame.Invite -> Event.PairingCode
             is Frame.Header -> onHeader(frame.header)
             is Frame.Data -> onData(frame.symbol)
         }

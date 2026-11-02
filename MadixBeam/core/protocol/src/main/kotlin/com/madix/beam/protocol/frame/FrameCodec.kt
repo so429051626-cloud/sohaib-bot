@@ -67,6 +67,24 @@ object FrameCodec {
         return seal(writer)
     }
 
+    fun encodeInvite(invitation: LinkInvitation): ByteArray {
+        val key = invitation.publicKey
+        val writer = ByteWriter(128 + key.size)
+            .u8(Protocol.WIRE_MAGIC)
+            .u8(Protocol.FRAME_TYPE_INVITE)
+            .i32(invitation.nonce)
+            .u8(key.size)
+            .bytes(key)
+            .shortString(invitation.deviceName, Protocol.MAX_DEVICE_NAME_BYTES)
+            .shortString(invitation.networkName, Protocol.MAX_NETWORK_NAME_BYTES)
+            .shortString(invitation.passphrase, 63)
+            .u16(invitation.port)
+        val addresses = invitation.addresses
+        writer.u8(addresses.size)
+        addresses.forEach { writer.bytes(it) }
+        return seal(writer)
+    }
+
     /**
      * Parses and validates a binary frame.
      * @throws ProtocolException on any malformed or corrupted input.
@@ -102,6 +120,21 @@ object FrameCodec {
                 val key = reader.bytes(keyLength)
                 val name = reader.shortString(Protocol.MAX_DEVICE_NAME_BYTES)
                 Frame.Pairing(PairingRequest(session, key, name))
+            }
+            Protocol.FRAME_TYPE_INVITE -> {
+                val keyLength = reader.u8()
+                if (keyLength == 0 || keyLength > Protocol.MAX_PUBLIC_KEY_BYTES) {
+                    throw ProtocolException("Invalid invitation key")
+                }
+                val key = reader.bytes(keyLength)
+                val name = reader.shortString(Protocol.MAX_DEVICE_NAME_BYTES)
+                val network = reader.shortString(Protocol.MAX_NETWORK_NAME_BYTES)
+                val passphrase = reader.shortString(63)
+                val port = reader.u16()
+                val count = reader.u8()
+                if (count > Protocol.MAX_LINK_ADDRESSES) throw ProtocolException("Too many addresses")
+                val addresses = List(count) { reader.bytes(4) }
+                Frame.Invite(LinkInvitation(session, key, name, network, passphrase, port, addresses))
             }
             else -> throw ProtocolException("Unknown frame type")
         }

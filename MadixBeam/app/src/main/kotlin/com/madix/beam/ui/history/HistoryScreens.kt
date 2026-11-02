@@ -62,6 +62,8 @@ import com.madix.beam.ui.components.iconForMime
 import com.madix.beam.ui.components.rememberDeviceExporter
 import com.madix.beam.ui.home.RecordRow
 import com.madix.beam.ui.send.modeLabel
+import com.madix.beam.ui.settings.methodLabel
+import com.madix.beam.data.settings.TransferMethod
 import com.madix.beam.ui.send.profileLabel
 import com.madix.beam.protocol.session.TransferProfile
 import com.madix.beam.util.Format
@@ -251,6 +253,10 @@ private fun RecordSummary(record: TransferRecord) {
         DetailRow(stringResource(R.string.detail_size), Format.bytes(context, record.totalBytes))
         DetailRow(stringResource(R.string.detail_sealed_size), Format.bytes(context, record.sealedBytes))
         DetailRow(stringResource(R.string.detail_duration), Format.duration(record.durationMillis / 1000))
+        record.method?.let { method ->
+            val transferMethod = runCatching { TransferMethod.valueOf(method) }.getOrNull()
+            if (transferMethod != null) DetailRow(stringResource(R.string.detail_method), stringResource(methodLabel(transferMethod)))
+        }
         DetailRow(stringResource(R.string.detail_security), stringResource(modeLabel(mode)))
         record.verificationCode?.let { DetailRow(stringResource(R.string.verification_code), it) }
         record.profile?.let { id ->

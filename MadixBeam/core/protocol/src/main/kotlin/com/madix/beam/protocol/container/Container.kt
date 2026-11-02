@@ -28,12 +28,17 @@ interface TransferSource {
     val displayName: String
     val mimeType: String
     val kind: EntryKind
+
+    /** Size in bytes when known in advance, otherwise -1. Used for progress and storage checks. */
+    val sizeHint: Long get() = -1L
+
     fun openStream(): InputStream
 }
 
 class TextSource(private val text: String, override val displayName: String = "message.txt") : TransferSource {
     override val mimeType: String = "text/plain"
     override val kind: EntryKind = EntryKind.TEXT
+    override val sizeHint: Long = text.toByteArray(Charsets.UTF_8).size.toLong()
     override fun openStream(): InputStream = text.toByteArray(Charsets.UTF_8).inputStream()
 }
 
@@ -43,6 +48,7 @@ class FileSource(
     override val displayName: String = file.name,
 ) : TransferSource {
     override val kind: EntryKind = EntryKind.FILE
+    override val sizeHint: Long get() = file.length()
     override fun openStream(): InputStream = file.inputStream()
 }
 

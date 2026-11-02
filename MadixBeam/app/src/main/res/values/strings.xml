@@ -36,9 +36,9 @@
 
     <!-- Splash and onboarding -->
     <string name="splash_tagline">Transfer anything through light</string>
-    <string name="splash_footer">End-to-end encrypted · Fully offline</string>
+    <string name="splash_footer">End-to-end encrypted · No internet required</string>
     <string name="onboarding_title_1">Transfer through light</string>
-    <string name="onboarding_body_1">Madix Beam moves photos, videos, documents and messages between devices using animated QR codes. No internet connection, Wi-Fi or Bluetooth is required.</string>
+    <string name="onboarding_body_1">Madix Beam moves photos, videos, documents and messages between devices at very high speed over a direct Wi-Fi link negotiated with a single QR scan. It also works through animated QR codes alone. No internet connection is ever used.</string>
     <string name="onboarding_title_2">End-to-end encryption</string>
     <string name="onboarding_body_2">Every transfer is sealed with AES-256-GCM. Device pairing establishes a unique key known only to the two devices involved.</string>
     <string name="onboarding_title_3">Resilient by design</string>
@@ -56,7 +56,7 @@
     <!-- Home -->
     <string name="home_subtitle">Secure optical file transfer</string>
     <string name="home_hero_title">Transfer anything through light</string>
-    <string name="home_hero_body">No internet. No cables. Two screens and a camera are all that is required.</string>
+    <string name="home_hero_body">Scan once and transfer at Wi-Fi Direct speed. No internet, no cables, no accounts.</string>
     <string name="badge_aes">AES-256</string>
     <string name="badge_offline">Offline</string>
     <string name="home_send">Send</string>
@@ -74,7 +74,7 @@
     <string name="home_recent">Recent transfers</string>
     <string name="home_empty_title">No transfers yet</string>
     <string name="home_empty_body">Completed transfers will appear here.</string>
-    <string name="home_privacy_note">All processing takes place on this device</string>
+    <string name="home_privacy_note">Nothing ever leaves your devices</string>
     <string name="record_subtitle_sent">Sent · %1$s · %2$s</string>
     <string name="record_subtitle_received">Received · %1$s · %2$s</string>
     <string name="history_untitled">Transfer</string>
@@ -168,11 +168,10 @@
     <string name="pairing_code_title">Pairing code</string>
     <string name="pairing_code_body">This code contains a one-time public key. It cannot be used to read any data.</string>
     <string name="pairing_single_use">Single use</string>
-    <string name="receive_step_1">On the sending device, select Device pairing and scan this code.</string>
-    <string name="receive_step_2">Select Start receiving and point this camera at the sending screen.</string>
+    <string name="receive_step_1">On the sending device, select Send, add items and scan this code.</string>
+    <string name="receive_step_2">The transfer starts automatically over an encrypted Wi-Fi Direct link.</string>
     <string name="receive_step_3">Confirm that both devices display the same verification code.</string>
-    <string name="receive_direct_note">For password-protected or unencrypted transfers, start receiving directly.</string>
-    <string name="receive_start">Start receiving</string>
+    <string name="receive_direct_note">If the sender chose QR codes, select Receive through QR codes below.</string>
     <string name="camera_rationale_receive">Camera access is required to read the transfer codes. Images are processed on this device only and are never stored.</string>
     <string name="camera_permission_title">Camera access required</string>
     <string name="camera_permission_grant">Allow camera access</string>
@@ -270,10 +269,10 @@
 
     <!-- About -->
     <string name="about_title">About Madix Beam</string>
-    <string name="about_body">Madix Beam transfers files between devices exclusively through animated QR codes. It requires no network connection and operates entirely offline, protecting each transfer with modern cryptography.</string>
+    <string name="about_body">Madix Beam transfers files directly between devices. A single QR scan establishes an encrypted Wi-Fi Direct link for very high speed, and animated QR codes provide a fully optical alternative. No internet connection or server is ever involved.</string>
     <string name="about_features">Capabilities</string>
-    <string name="feature_offline_title">Fully offline</string>
-    <string name="feature_offline_body">The application has no internet permission. Data travels only through the screen and the camera.</string>
+    <string name="feature_offline_title">No internet, no servers</string>
+    <string name="feature_offline_body">Data travels only between your two devices, over Wi-Fi Direct or through the screen and camera. Nothing is uploaded anywhere.</string>
     <string name="feature_e2e_title">End-to-end encryption</string>
     <string name="feature_e2e_body">Device pairing uses ephemeral ECDH P-256 key agreement and AES-256-GCM, confirmed by a six-digit verification code.</string>
     <string name="feature_fountain_title">Rateless fountain coding</string>
@@ -295,7 +294,7 @@
     <string name="privacy_section_data_title">Information collected</string>
     <string name="privacy_section_data_body">Madix Beam does not collect, store on remote servers, sell or share any personal information. The application contains no analytics, advertising or tracking components.</string>
     <string name="privacy_section_network_title">Network access</string>
-    <string name="privacy_section_network_body">The application does not request internet access. Transfers take place exclusively between the screen of one device and the camera of another.</string>
+    <string name="privacy_section_network_body">Madix Beam never connects to the internet or to any server. Android requires the network permission for any connection, including the direct Wi-Fi link between your two devices; the application uses it exclusively for that local link. Built-in usage reporting of third-party components is disabled.</string>
     <string name="privacy_section_camera_title">Camera</string>
     <string name="privacy_section_camera_body">The camera is used only while scanning codes. Images are analysed in memory on the device and are never saved or transmitted.</string>
     <string name="privacy_section_storage_title">Stored data</string>
@@ -313,6 +312,61 @@
     <string name="toast_save_failed">Some files could not be saved.</string>
     <string name="toast_storage_permission">Storage access is required to save files to the device.</string>
 
+    <string name="receive_start_qr">Receive through QR codes</string>
+    <string name="receive_ready_again">Ready for a new transfer</string>
+    <string name="scan_failed_connection">The connection to the sending device was interrupted. Keep both devices close together and try again.</string>
+    <string name="link_badge">Wi-Fi Direct · Encrypted</string>
+    <string name="link_remaining">%1$s remaining</string>
+    <string name="link_current_item">Item %1$d of %2$d · %3$s</string>
+    <string name="link_encrypted_code">Verification code</string>
+    <string name="link_receiving_title">Receiving</string>
+    <string name="wifi_status_starting">Preparing the Wi-Fi Direct link…</string>
+    <string name="wifi_status_ready">Wi-Fi Direct is ready for ultra-fast transfers.</string>
+    <string name="wifi_status_lan">Ready to receive over the shared Wi-Fi network.</string>
+    <string name="wifi_status_permission">Allow access to nearby devices for ultra-fast Wi-Fi transfers.</string>
+    <string name="wifi_status_off">Turn on Wi-Fi for ultra-fast transfers. An internet connection is not required.</string>
+    <string name="wifi_status_location">This Android version requires location services for Wi-Fi Direct.</string>
+    <string name="wifi_status_unsupported">Wi-Fi Direct is unavailable on this device. QR codes remain available.</string>
+    <string name="wifi_action_allow">Allow</string>
+    <string name="wifi_action_enable">Turn on</string>
+    <string name="wifi_action_location">Settings</string>
+    <string name="send_method">Transfer method</string>
+    <string name="method_wifi">Wi-Fi Direct</string>
+    <string name="method_wifi_body">Ultra-fast direct link between the two devices. No internet or router is required.</string>
+    <string name="method_fastest">Fastest</string>
+    <string name="method_qr">QR codes</string>
+    <string name="method_qr_body">Transfers through the screen and camera only, without any radio connection.</string>
+    <string name="method_wifi_note">Encrypted end to end automatically. Photos and videos are sent in their original quality.</string>
+    <string name="send_continue_scan">Scan the receiving device</string>
+    <string name="wifi_send_title">Wi-Fi Direct</string>
+    <string name="wifi_sending_title">Sending</string>
+    <string name="wifi_to">To %1$s</string>
+    <string name="wifi_step_connecting">Connecting</string>
+    <string name="wifi_step_joining">Joining the receiving device</string>
+    <string name="wifi_step_securing">Securing the connection</string>
+    <string name="wifi_connecting_body">A direct encrypted Wi-Fi link is being established. This normally takes a few seconds.</string>
+    <string name="wifi_cancel_title">Stop the transfer?</string>
+    <string name="wifi_cancel_body">Items that have not been delivered yet will not reach the receiving device.</string>
+    <string name="wifi_delivered_title">Delivered</string>
+    <string name="wifi_delivered_to">Received and verified by %1$s</string>
+    <string name="wifi_delivered_body">Completed in %1$s with end-to-end encryption.</string>
+    <string name="wifi_stat_speed">Average speed</string>
+    <string name="wifi_failed_title">The Wi-Fi transfer could not be completed</string>
+    <string name="wifi_use_qr">Send with QR codes instead</string>
+    <string name="action_retry">Try again</string>
+    <string name="wifi_error_unsupported">Wi-Fi Direct is not available on this device. Send with QR codes instead.</string>
+    <string name="wifi_error_permission">Access to nearby devices is required to connect to the receiving device.</string>
+    <string name="wifi_error_off">Wi-Fi is turned off. Turn it on; an internet connection is not required.</string>
+    <string name="wifi_error_location">This Android version requires location services to be enabled for Wi-Fi Direct.</string>
+    <string name="wifi_error_unreachable">The receiving device could not be reached. Keep its receive screen open and the devices close together.</string>
+    <string name="wifi_error_busy">The receiving device is busy with another transfer.</string>
+    <string name="wifi_error_declined">The receiving device declined the transfer.</string>
+    <string name="wifi_error_storage">The receiving device does not have enough free storage.</string>
+    <string name="wifi_error_integrity">The data failed verification on the receiving device. Try again.</string>
+    <string name="wifi_error_interrupted">The connection was interrupted. Keep both devices close together and try again.</string>
+    <string name="result_speed">Wi-Fi Direct · %1$s</string>
+    <string name="settings_default_method">Default transfer method</string>
+    <string name="detail_method">Method</string>
     <plurals name="item_count">
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>

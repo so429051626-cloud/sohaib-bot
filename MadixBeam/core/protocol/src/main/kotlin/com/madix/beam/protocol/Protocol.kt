@@ -19,6 +19,7 @@ object Protocol {
     const val FRAME_TYPE_HEADER: Int = 0x01
     const val FRAME_TYPE_DATA: Int = 0x02
     const val FRAME_TYPE_PAIRING: Int = 0x10
+    const val FRAME_TYPE_INVITE: Int = 0x11
 
     /** Bytes preceding the payload of a data frame: magic, type, session, segment, symbol. */
     const val DATA_FRAME_OVERHEAD: Int = 1 + 1 + 4 + 2 + 4
@@ -61,6 +62,8 @@ object Protocol {
 
     const val MAX_PUBLIC_KEY_BYTES: Int = 160
     const val MAX_DEVICE_NAME_BYTES: Int = 48
+    const val MAX_NETWORK_NAME_BYTES: Int = 32
+    const val MAX_LINK_ADDRESSES: Int = 4
 }
 
 /** Raised when received bytes violate the protocol. */

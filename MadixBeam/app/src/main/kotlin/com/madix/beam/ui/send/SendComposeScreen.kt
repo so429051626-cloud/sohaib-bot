@@ -79,6 +79,10 @@ import coil.request.ImageRequest
 import com.madix.beam.R
 import com.madix.beam.core.AppContainer
 import com.madix.beam.data.settings.ImageQuality
+import com.madix.beam.data.settings.TransferMethod
+import com.madix.beam.wifi.WifiPermissions
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.QrCode2
 import com.madix.beam.data.source.PickedItem
 import com.madix.beam.protocol.Protocol
 import com.madix.beam.protocol.frame.SecurityMode
@@ -118,6 +122,11 @@ fun SendComposeScreen(
     }
     val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.addUris(uris)
+    }
+    // Wi-Fi Direct needs a runtime permission; scanning proceeds either way and the transfer
+    // falls back to a shared network or QR codes when the permission is refused.
+    val wifiPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        onPairingRequired()
     }
     fun pickMedia() = mediaPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
     fun pickFiles() = filePicker.launch(arrayOf("*/*"))
@@ -212,6 +221,33 @@ fun SendComposeScreen(
 
                 item {
                     Column {
+                        SectionHeader(stringResource(R.string.send_method))
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            SecurityOption(
+                                selected = state.method == TransferMethod.WIFI,
+                                icon = Icons.Rounded.Bolt,
+                                title = stringResource(R.string.method_wifi),
+                                body = stringResource(R.string.method_wifi_body),
+                                badge = stringResource(R.string.method_fastest),
+                                onClick = { viewModel.setMethod(TransferMethod.WIFI) },
+                            )
+                            SecurityOption(
+                                selected = state.method == TransferMethod.QR,
+                                icon = Icons.Rounded.QrCode2,
+                                title = stringResource(R.string.method_qr),
+                                body = stringResource(R.string.method_qr_body),
+                                onClick = { viewModel.setMethod(TransferMethod.QR) },
+                            )
+                        }
+                        if (state.method == TransferMethod.WIFI) {
+                            Spacer(Modifier.height(10.dp))
+                            InfoBanner(stringResource(R.string.method_wifi_note), kind = BannerKind.SUCCESS)
+                        }
+                    }
+                }
+
+                if (state.method == TransferMethod.QR) item {
+                    Column {
                     SectionHeader(stringResource(R.string.send_security))
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SecurityOption(
@@ -244,7 +280,7 @@ fun SendComposeScreen(
                     }
                 }
 
-                item {
+                if (state.method == TransferMethod.QR) item {
                     Column {
                         SectionHeader(stringResource(R.string.send_speed))
                         ProfileSelector(state.profile, viewModel::setProfile)
@@ -257,7 +293,7 @@ fun SendComposeScreen(
                     }
                 }
 
-                if (state.hasImages) {
+                if (state.hasImages && state.method == TransferMethod.QR) {
                     item {
                         Column {
                         SectionHeader(stringResource(R.string.send_photo_quality))
@@ -287,7 +323,7 @@ fun SendComposeScreen(
                             kind = BannerKind.ERROR,
                         )
                     }
-                } else if (state.totalBytes > LARGE_TRANSFER_BYTES) {
+                } else if (state.method == TransferMethod.QR && state.totalBytes > LARGE_TRANSFER_BYTES) {
                     item {
                         InfoBanner(stringResource(R.string.send_large_warning), kind = BannerKind.WARNING)
                     }
@@ -314,19 +350,31 @@ fun SendComposeScreen(
                     )
                     Spacer(Modifier.height(10.dp))
                 }
+                val needsScan = state.method == TransferMethod.WIFI || state.security == SecurityMode.PAIRED
                 GradientButton(
                     text = stringResource(
-                        if (state.security == SecurityMode.PAIRED) R.string.send_continue_pair else R.string.send_start,
+                        when {
+                            state.method == TransferMethod.WIFI -> R.string.send_continue_scan
+                            state.security == SecurityMode.PAIRED -> R.string.send_continue_pair
+                            else -> R.string.send_start
+                        },
                     ),
-                    icon = if (state.security == SecurityMode.PAIRED) Icons.Rounded.QrCodeScanner else Icons.Rounded.Send,
+                    icon = if (needsScan) Icons.Rounded.QrCodeScanner else Icons.Rounded.Send,
                     enabled = state.canContinue,
                     onClick = {
-                        if (state.security == SecurityMode.PAIRED) {
-                            viewModel.resetPairing()
-                            onPairingRequired()
-                        } else {
-                            viewModel.beginTransfer()
-                            onBroadcast()
+                        when {
+                            state.method == TransferMethod.WIFI && !WifiPermissions.granted(context) -> {
+                                viewModel.resetPairing()
+                                wifiPermissionLauncher.launch(WifiPermissions.required)
+                            }
+                            needsScan -> {
+                                viewModel.resetPairing()
+                                onPairingRequired()
+                            }
+                            else -> {
+                                viewModel.beginTransfer()
+                                onBroadcast()
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),

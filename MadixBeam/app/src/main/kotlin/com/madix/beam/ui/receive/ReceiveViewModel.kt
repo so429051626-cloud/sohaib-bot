@@ -40,8 +40,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.Build
+import android.os.SystemClock
+import com.madix.beam.protocol.frame.LinkInvitation
+import com.madix.beam.protocol.link.LinkException
+import com.madix.beam.protocol.link.LinkOffer
+import com.madix.beam.protocol.link.LinkReceiver
+import com.madix.beam.protocol.link.LinkSink
+import com.madix.beam.protocol.link.OfferDecision
+import com.madix.beam.protocol.link.OfferedEntry
+import com.madix.beam.wifi.GroupCredentials
+import com.madix.beam.wifi.LinkNetwork
+import com.madix.beam.wifi.WifiDirectController
+import com.madix.beam.wifi.WifiReadiness
+import kotlinx.coroutines.isActive
 import java.io.File
 import java.io.IOException
+import java.net.ServerSocket
+import java.net.Socket
 import java.io.OutputStream
 import java.security.SecureRandom
 import java.util.UUID
@@ -66,7 +82,30 @@ data class ReceiveResult(
     val durationMillis: Long,
     val mode: SecurityMode,
     val verificationCode: String?,
+    val viaWifi: Boolean = false,
+    val bytesPerSecond: Double = 0.0,
 )
+
+/** Live state of a direct Wi-Fi reception. */
+data class LinkUi(
+    val senderName: String = "",
+    val verificationCode: String? = null,
+    val entryName: String = "",
+    val entryIndex: Int = 0,
+    val entryCount: Int = 0,
+    val bytesDone: Long = 0,
+    val bytesTotal: Long = -1,
+    val bytesPerSecond: Double = 0.0,
+) {
+    val fraction: Float
+        get() = if (bytesTotal > 0) (bytesDone.toFloat() / bytesTotal).coerceIn(0f, 1f) else 0f
+
+    val etaSeconds: Long?
+        get() = if (bytesTotal > 0 && bytesPerSecond > 1.0) ((bytesTotal - bytesDone).coerceAtLeast(0) / bytesPerSecond).toLong() + 1 else null
+}
+
+/** Availability of direct Wi-Fi reception on this device. */
+enum class WifiHostStatus { CHECKING, STARTING, READY, LAN_ONLY, PERMISSION_REQUIRED, WIFI_OFF, LOCATION_OFF, UNSUPPORTED }
 
 sealed interface ReceivePhase {
     /** Camera active, collecting frames. */
@@ -78,12 +117,15 @@ sealed interface ReceivePhase {
     /** Decrypting, verifying and writing files. */
     data class Opening(val fraction: Float) : ReceivePhase
 
+    /** Receiving directly over Wi-Fi. */
+    data class Linking(val link: LinkUi) : ReceivePhase
+
     data class Done(val result: ReceiveResult) : ReceivePhase
 
     data class Failed(val reason: ReceiveFailure) : ReceivePhase
 }
 
-enum class ReceiveFailure { INTEGRITY, STORAGE, UNKNOWN }
+enum class ReceiveFailure { INTEGRITY, STORAGE, CONNECTION, UNKNOWN }
 
 data class ReceiveUiState(
     val phase: ReceivePhase = ReceivePhase.Scanning,
@@ -91,6 +133,7 @@ data class ReceiveUiState(
     val verificationCode: String? = null,
     val pairingCodeSeen: Boolean = false,
     val foreignText: String? = null,
+    val wifi: WifiHostStatus = WifiHostStatus.CHECKING,
 )
 
 class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
@@ -117,15 +160,236 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
     private var openJob: Job? = null
     private var completedAt = 0L
 
+    // Direct Wi-Fi reception.
+    private val wifi = WifiDirectController(container.appContext)
+    private val credentials = GroupCredentials.generate()
+    private val invitationNonce = SecureRandom().nextInt()
+    private var serverSocket: ServerSocket? = null
+
+    @Volatile
+    private var activeLink: Socket? = null
+
+    @Volatile
+    private var groupRequested = false
+
     init {
-        viewModelScope.launch(Dispatchers.Default) {
-            runCatching {
-                val nonce = SecureRandom().nextInt()
-                val text = FrameCodec.toQrText(FrameCodec.encodePairing(PairingRequest(nonce, keys.publicKey, deviceName)))
-                pairingImage.value = QrRenderer.render(text, ErrorCorrection.M).asImageBitmap()
+        startServer()
+        renderInvitation(includeGroup = false)
+        refreshWifi()
+        viewModelScope.launch(engineDispatcher) { consumeCodes() }
+    }
+
+    /**
+     * Re-evaluates Wi-Fi Direct availability; called when the screen resumes or a permission
+     * changes. Hosting starts as soon as every requirement is met.
+     */
+    fun refreshWifi() {
+        viewModelScope.launch {
+            if (groupRequested) {
+                renderInvitation(includeGroup = true)
+                return@launch
+            }
+            val readiness = wifi.readiness()
+            if (readiness != WifiReadiness.READY || Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                val hasLan = serverSocket != null && LinkNetwork.lanAddresses().isNotEmpty()
+                val status = when (readiness) {
+                    WifiReadiness.PERMISSION_REQUIRED -> WifiHostStatus.PERMISSION_REQUIRED
+                    WifiReadiness.WIFI_OFF -> WifiHostStatus.WIFI_OFF
+                    WifiReadiness.LOCATION_OFF -> WifiHostStatus.LOCATION_OFF
+                    else -> if (hasLan) WifiHostStatus.LAN_ONLY else WifiHostStatus.UNSUPPORTED
+                }
+                uiState.update { it.copy(wifi = status) }
+                renderInvitation(includeGroup = false)
+                return@launch
+            }
+            groupRequested = true
+            uiState.update { it.copy(wifi = WifiHostStatus.STARTING) }
+            renderInvitation(includeGroup = true)
+            try {
+                wifi.createGroup(credentials)
+                uiState.update { it.copy(wifi = WifiHostStatus.READY) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                groupRequested = false
+                val hasLan = serverSocket != null && LinkNetwork.lanAddresses().isNotEmpty()
+                uiState.update { it.copy(wifi = if (hasLan) WifiHostStatus.LAN_ONLY else WifiHostStatus.UNSUPPORTED) }
+                renderInvitation(includeGroup = false)
             }
         }
-        viewModelScope.launch(engineDispatcher) { consumeCodes() }
+    }
+
+    /** Renders the code shown to senders: a Wi-Fi invitation, or a plain pairing code. */
+    private fun renderInvitation(includeGroup: Boolean) {
+        viewModelScope.launch(Dispatchers.Default) {
+            runCatching {
+                val server = serverSocket
+                val frame = if (server != null) {
+                    val invitation = LinkInvitation(
+                        nonce = invitationNonce,
+                        publicKey = keys.publicKey,
+                        deviceName = deviceName,
+                        networkName = if (includeGroup) credentials.networkName else "",
+                        passphrase = if (includeGroup) credentials.passphrase else "",
+                        port = server.localPort,
+                        addresses = LinkNetwork.lanAddresses().map { it.address },
+                    )
+                    FrameCodec.encodeInvite(invitation)
+                } else {
+                    FrameCodec.encodePairing(PairingRequest(invitationNonce, keys.publicKey, deviceName))
+                }
+                pairingImage.value = QrRenderer.render(FrameCodec.toQrText(frame), ErrorCorrection.M).asImageBitmap()
+            }
+        }
+    }
+
+    private fun startServer() {
+        val server = runCatching { LinkNetwork.openServer() }.getOrNull() ?: return
+        serverSocket = server
+        viewModelScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                val socket = try {
+                    server.accept()
+                } catch (e: IOException) {
+                    break
+                }
+                val phase = uiState.value.phase
+                if (phase is ReceivePhase.Scanning || phase is ReceivePhase.Failed) {
+                    handleLink(socket)
+                } else {
+                    runCatching { socket.close() }
+                }
+            }
+        }
+    }
+
+    /** Receives one direct transfer; blocks the calling IO thread until it ends. */
+    private fun handleLink(socket: Socket) {
+        activeLink = socket
+        val directory = container.files.createTransferDirectory()
+        val files = HashMap<Int, File>()
+        val previousPhase = uiState.value.phase
+        var handshakeDone = false
+        var link = LinkUi()
+        var started = SystemClock.elapsedRealtime()
+        var lastPublish = 0L
+        try {
+            LinkNetwork.tune(socket)
+            socket.soTimeout = LINK_TIMEOUT_MILLIS
+            val sink = object : LinkSink {
+                override fun onOffer(offer: LinkOffer): OfferDecision {
+                    val required = offer.knownBytes + STORAGE_MARGIN
+                    if (directory.usableSpace in 0 until required) return OfferDecision.INSUFFICIENT_STORAGE
+                    val total = if (offer.entries.all { it.sizeHint >= 0 }) offer.knownBytes else -1L
+                    link = link.copy(senderName = offer.senderName, entryCount = offer.entries.size, bytesTotal = total)
+                    started = SystemClock.elapsedRealtime()
+                    uiState.update { it.copy(phase = ReceivePhase.Linking(link)) }
+                    return OfferDecision.ACCEPT
+                }
+
+                override fun openEntry(index: Int, entry: OfferedEntry): OutputStream {
+                    val name = if (entry.kind == EntryKind.TEXT && !entry.name.contains('.')) "${entry.name}.txt" else entry.name
+                    val file = FileNames.unique(directory, name)
+                    files[index] = file
+                    return file.outputStream().buffered(256 * 1024)
+                }
+            }
+            val result = LinkReceiver(keys, deviceName).receive(
+                input = socket.getInputStream().buffered(256 * 1024),
+                output = socket.getOutputStream().buffered(16 * 1024),
+                sink = sink,
+                listener = { progress ->
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastPublish >= PROGRESS_INTERVAL_MILLIS) {
+                        lastPublish = now
+                        val seconds = (now - started).coerceAtLeast(1) / 1000.0
+                        link = link.copy(
+                            entryName = progress.entryName,
+                            entryIndex = progress.entryIndex,
+                            bytesDone = progress.bytesDone,
+                            bytesPerSecond = progress.bytesDone / seconds,
+                        )
+                        uiState.update { it.copy(phase = ReceivePhase.Linking(link)) }
+                    }
+                },
+                onVerificationCode = { code, sender ->
+                    handshakeDone = true
+                    link = link.copy(senderName = sender, verificationCode = code)
+                    uiState.update { it.copy(phase = ReceivePhase.Linking(link)) }
+                },
+            )
+            val elapsed = (SystemClock.elapsedRealtime() - started).coerceAtLeast(1)
+            val rate = result.totalBytes / (elapsed / 1000.0)
+            val entries = result.entries.mapIndexed { index, entry ->
+                val file = files.getValue(index)
+                val isText = entry.kind == EntryKind.TEXT
+                ReceivedEntry(
+                    file = file,
+                    name = if (isText) entry.name else file.name,
+                    mimeType = entry.mimeType,
+                    size = entry.size,
+                    sha256 = entry.sha256Hex,
+                    isText = isText,
+                    textPreview = if (isText && entry.size <= MAX_TEXT_PREVIEW) runCatching { file.readText() }.getOrNull() else null,
+                )
+            }
+            val id = UUID.randomUUID().toString()
+            val received = ReceiveResult(
+                recordId = id,
+                entries = entries,
+                senderName = result.senderName,
+                totalBytes = result.totalBytes,
+                durationMillis = elapsed,
+                mode = SecurityMode.PAIRED,
+                verificationCode = result.verificationCode,
+                viaWifi = true,
+                bytesPerSecond = rate,
+            )
+            val record = TransferRecord(
+                id = id,
+                direction = TransferDirection.RECEIVED,
+                timestamp = System.currentTimeMillis(),
+                items = entries.map {
+                    HistoryItem(
+                        name = it.name,
+                        mimeType = it.mimeType,
+                        size = it.size,
+                        relativePath = container.files.relativePath(it.file),
+                        sha256 = it.sha256,
+                        isText = it.isText,
+                    )
+                },
+                totalBytes = result.totalBytes,
+                sealedBytes = result.totalBytes,
+                durationMillis = elapsed,
+                security = SecurityMode.PAIRED.name,
+                peerName = result.senderName.ifBlank { null },
+                verificationCode = result.verificationCode,
+                method = METHOD_WIFI,
+            )
+            container.applicationScope.launch { runCatching { container.history.add(record) } }
+            uiState.update { it.copy(phase = ReceivePhase.Done(received)) }
+        } catch (e: Exception) {
+            directory.deleteRecursively()
+            if (!handshakeDone) {
+                // Not a Madix Beam peer or an aborted attempt: keep the previous state.
+                uiState.update { it.copy(phase = previousPhase) }
+            } else {
+                val reason = when (e) {
+                    is LinkException -> when (e.reason) {
+                        LinkException.Reason.INSUFFICIENT_STORAGE -> ReceiveFailure.STORAGE
+                        LinkException.Reason.INTEGRITY -> ReceiveFailure.INTEGRITY
+                        else -> ReceiveFailure.CONNECTION
+                    }
+                    is IOException -> ReceiveFailure.CONNECTION
+                    else -> ReceiveFailure.UNKNOWN
+                }
+                uiState.update { it.copy(phase = ReceivePhase.Failed(reason)) }
+            }
+        } finally {
+            runCatching { socket.close() }
+            activeLink = null
+        }
     }
 
     private fun newEngine() = ReceiverEngine(keys, ::createStore)
@@ -215,7 +479,7 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
             runCatching { engine.close() }
             container.files.incomingWorkDir.listFiles()?.forEach { it.delete() }
             engine = newEngine()
-            uiState.value = ReceiveUiState()
+            uiState.update { ReceiveUiState(wifi = it.wifi) }
         }
     }
 
@@ -327,6 +591,7 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
             peerName = manifest.senderName.ifBlank { null },
             verificationCode = code,
             frames = snapshot.framesDecoded,
+            method = METHOD_QR,
         )
         return result to record
     }
@@ -353,6 +618,13 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
     override fun onCleared() {
         openJob?.cancel()
         codes.close()
+        runCatching { serverSocket?.close() }
+        runCatching { activeLink?.close() }
+        val controller = wifi
+        container.applicationScope.launch {
+            runCatching { controller.removeGroup() }
+            controller.close()
+        }
         val current = engine
         engineExecutor.execute {
             runCatching { current.close() }
@@ -366,5 +638,9 @@ class ReceiveViewModel(private val container: AppContainer) : ViewModel() {
         const val PUBLISH_INTERVAL_NANOS = 120_000_000L
         const val MAX_TEXT_PREVIEW = 256L * 1024
         const val STORAGE_MARGIN = 16L * 1024 * 1024
+        const val LINK_TIMEOUT_MILLIS = 30_000
+        const val PROGRESS_INTERVAL_MILLIS = 100L
+        const val METHOD_WIFI = "WIFI"
+        const val METHOD_QR = "QR"
     }
 }

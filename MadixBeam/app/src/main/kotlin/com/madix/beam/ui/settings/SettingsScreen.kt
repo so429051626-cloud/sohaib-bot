@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.BrightnessHigh
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.DarkMode
@@ -66,6 +67,7 @@ import com.madix.beam.core.AppContainer
 import com.madix.beam.data.settings.AppSettings
 import com.madix.beam.data.settings.ImageQuality
 import com.madix.beam.data.settings.ThemeMode
+import com.madix.beam.data.settings.TransferMethod
 import com.madix.beam.protocol.frame.SecurityMode
 import com.madix.beam.protocol.session.TransferProfile
 import com.madix.beam.security.BiometricGate
@@ -83,7 +85,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class SettingsDialog { THEME, LANGUAGE, SECURITY, PROFILE, QUALITY, DEVICE_NAME, CLEAR_FILES, CLEAR_HISTORY }
+private enum class SettingsDialog { THEME, LANGUAGE, METHOD, SECURITY, PROFILE, QUALITY, DEVICE_NAME, CLEAR_FILES, CLEAR_HISTORY }
 
 private enum class AppLanguage(val tag: String) { SYSTEM(""), ARABIC("ar"), ENGLISH("en") }
 
@@ -163,6 +165,17 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onAbout: () -> U
                 dialog = null
                 val locales = if (choice.tag.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(choice.tag)
                 AppCompatDelegate.setApplicationLocales(locales)
+            },
+            onDismiss = { dialog = null },
+        )
+        SettingsDialog.METHOD -> ChoiceDialog(
+            title = stringResource(R.string.settings_default_method),
+            options = TransferMethod.entries,
+            selected = settings.transferMethod,
+            label = { stringResource(methodLabel(it)) },
+            onSelect = { method ->
+                dialog = null
+                update { it.copy(transferMethod = method) }
             },
             onDismiss = { dialog = null },
         )
@@ -283,6 +296,9 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onAbout: () -> U
 
                 SectionHeader(stringResource(R.string.settings_section_transfer))
                 SettingsGroup {
+                    SettingRow(Icons.Rounded.Bolt, stringResource(R.string.settings_default_method), stringResource(methodLabel(settings.transferMethod))) {
+                        dialog = SettingsDialog.METHOD
+                    }
                     SettingRow(Icons.Rounded.Speed, stringResource(R.string.settings_default_profile), stringResource(profileLabel(settings.profile))) {
                         dialog = SettingsDialog.PROFILE
                     }
@@ -450,6 +466,11 @@ private fun DeviceNameDialog(initial: String, onSave: (String) -> Unit, onDismis
         confirmButton = { TextButton(onClick = { onSave(name.trim()) }) { Text(stringResource(R.string.action_save)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     )
+}
+
+fun methodLabel(method: TransferMethod): Int = when (method) {
+    TransferMethod.WIFI -> R.string.method_wifi
+    TransferMethod.QR -> R.string.method_qr
 }
 
 private fun themeLabel(mode: ThemeMode): Int = when (mode) {

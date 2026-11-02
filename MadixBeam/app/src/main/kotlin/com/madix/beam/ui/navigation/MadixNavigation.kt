@@ -39,6 +39,7 @@ import com.madix.beam.ui.send.BroadcastScreen
 import com.madix.beam.ui.send.SendComposeScreen
 import com.madix.beam.ui.send.SendPairingScreen
 import com.madix.beam.ui.send.SendViewModel
+import com.madix.beam.ui.send.WifiSendScreen
 import com.madix.beam.ui.settings.AboutScreen
 import com.madix.beam.ui.settings.PrivacyScreen
 import com.madix.beam.ui.settings.SettingsScreen
@@ -55,6 +56,7 @@ object Routes {
     const val SEND_COMPOSE = "send/compose"
     const val SEND_PAIR = "send/pair"
     const val SEND_BROADCAST = "send/broadcast"
+    const val SEND_WIFI = "send/wifi"
 
     const val RECEIVE_GRAPH = "receive"
     const val RECEIVE_PAIR = "receive/pair"
@@ -193,6 +195,29 @@ private fun MadixNavHost(navController: NavHostController, container: AppContain
                             popUpTo(Routes.SEND_COMPOSE)
                         }
                     },
+                    onWifi = {
+                        navController.navigate(Routes.SEND_WIFI) {
+                            popUpTo(Routes.SEND_COMPOSE)
+                        }
+                    },
+                )
+            }
+            composable(Routes.SEND_WIFI) { entry ->
+                val vm = entry.graphViewModel(navController, Routes.SEND_GRAPH) { SendViewModel(container) }
+                WifiSendScreen(
+                    viewModel = vm,
+                    container = container,
+                    onBack = { navController.popBackStack(Routes.SEND_COMPOSE, inclusive = false) },
+                    onFinished = {
+                        navController.navigate(Routes.HOME) {
+                            popUpTo(Routes.HOME) { inclusive = true }
+                        }
+                    },
+                    onFallback = {
+                        navController.navigate(Routes.SEND_BROADCAST) {
+                            popUpTo(Routes.SEND_COMPOSE)
+                        }
+                    },
                 )
             }
             composable(Routes.SEND_BROADCAST) { entry ->
@@ -215,8 +240,10 @@ private fun MadixNavHost(navController: NavHostController, container: AppContain
                 val vm = entry.graphViewModel(navController, Routes.RECEIVE_GRAPH) { ReceiveViewModel(container) }
                 ReceivePairingScreen(
                     viewModel = vm,
+                    container = container,
                     onBack = { navController.popBackStack() },
                     onStartScanning = { navController.navigate(Routes.RECEIVE_SCAN) },
+                    onCompleted = { navController.navigate(Routes.RECEIVE_RESULT) { launchSingleTop = true } },
                 )
             }
             composable(Routes.RECEIVE_SCAN) { entry ->
