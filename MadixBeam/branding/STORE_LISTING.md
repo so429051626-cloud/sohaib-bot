@@ -5,17 +5,16 @@
 **App name:** Madix Beam
 
 **Short description (80 characters):**
-Transfer files between devices through animated QR codes. Encrypted. Offline.
+Scan once, send at Wi-Fi Direct speed. Encrypted. No internet. No account.
 
 **Full description:**
 
-Madix Beam transfers photos, videos, documents and messages between devices using nothing
-but a screen and a camera. There is no internet connection, no Wi-Fi, no Bluetooth and no
-account. The application does not even request network access.
+Madix Beam transfers photos, videos, documents and messages between devices at very high
+speed. Scan a single QR code and the two devices connect over a direct, encrypted Wi-Fi link:
+no internet, no router, no account and no cables.
 
-The sending device displays a sequence of animated QR codes; the receiving device reads them
-with its camera. Frames may be captured in any order, and frames that are missed are
-reconstructed automatically, so the transfer completes reliably even in difficult conditions.
+When no radio may be used at all, Madix Beam can also transfer through animated QR codes
+alone, read by the camera in any order with missed frames recovered automatically.
 
 SECURITY
 • Device pairing with ephemeral ECDH P-256 key agreement and a six-digit verification code
@@ -40,7 +39,7 @@ Madix Beam collects no personal data and contains no advertising, analytics or t
 
 **Category:** Tools
 **Content rating:** Everyone
-**Data safety:** No data collected; no data shared.
+**Data safety:** No data collected; no data shared. Network access is used only for the direct link between the user's own devices.
 
 ---
 
@@ -49,17 +48,15 @@ Madix Beam collects no personal data and contains no advertising, analytics or t
 **اسم التطبيق:** Madix Beam
 
 **الوصف المختصر:**
-انقل الملفات بين الأجهزة عبر رموز QR المتحركة، بتشفير كامل ودون اتصال.
+امسح مرة واحدة وأرسل بسرعة Wi-Fi Direct، بتشفير كامل ودون إنترنت أو حساب.
 
 **الوصف الكامل:**
 
-ينقل Madix Beam الصور ومقاطع الفيديو والمستندات والرسائل بين الأجهزة باستخدام الشاشة والكاميرا
-فقط، دون الحاجة إلى اتصال بالإنترنت أو شبكة Wi-Fi أو تقنية Bluetooth أو أي حساب، إذ لا يطلب التطبيق
-إذن الوصول إلى الشبكة أصلًا.
+ينقل Madix Beam الصور ومقاطع الفيديو والمستندات والرسائل بين الأجهزة بسرعة فائقة؛ إذ يكفي مسح رمز
+QR واحد ليتصل الجهازان عبر اتصال Wi-Fi مباشر ومشفّر، دون إنترنت أو راوتر أو حساب أو كابلات.
 
-يعرض الجهاز المرسِل سلسلة من رموز QR المتحركة، ويقرؤها الجهاز المستقبِل بكاميرته. ويمكن التقاط
-الإطارات بأي ترتيب، وتُعاد بناء الإطارات الفائتة تلقائيًا، فتكتمل عملية النقل بموثوقية حتى في الظروف
-الصعبة.
+وعند الحاجة إلى عدم استخدام أي اتصال لاسلكي، يتيح Madix Beam النقل عبر رموز QR المتحركة وحدها، تقرؤها
+الكاميرا بأي ترتيب مع استعادة الإطارات الفائتة تلقائيًا.
 
 الأمان
 • اقتران الأجهزة بتبادل مفاتيح ECDH P-256 مؤقتة مع رمز تحقق من ستة أرقام

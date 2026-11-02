@@ -4,27 +4,32 @@
 
 <h1 align="center">Madix Beam</h1>
 
-<p align="center"><strong>Secure, fully offline file transfer through animated QR codes.</strong><br/>
-نقل آمن للملفات عبر رموز QR المتحركة، دون أي اتصال بالشبكة.</p>
+<p align="center"><strong>Scan once, transfer at Wi-Fi Direct speed — encrypted, with no internet.</strong><br/>
+امسح مرة واحدة وانقل بسرعة Wi-Fi Direct، بتشفير تام ودون إنترنت.</p>
 
 ---
 
 ## Overview
 
-Madix Beam moves photos, videos, documents and text between Android devices using only a
-screen and a camera. The application holds **no internet permission**; data travels as a
-stream of QR codes displayed by the sender and read by the receiver's camera.
+Madix Beam moves photos, videos, documents and text between Android devices. It offers two
+transfer methods, both end-to-end encrypted and neither using the internet:
+
+1. **Wi-Fi Direct (default, very fast).** The receiver hosts a Wi-Fi Direct group (5 GHz when
+   available) and displays a QR invitation containing the group credentials, its listening port
+   and an ephemeral P-256 public key. The sender scans it, joins the group without any system
+   dialog (Android 10+), and streams the files over an encrypted TCP link at the full speed of
+   the radio link. Devices on the same Wi-Fi network connect instantly over that network.
+2. **QR codes (fully optical).** Animated QR codes carry the data from screen to camera with a
+   rateless fountain code, for situations where no radio may be used.
 
 | Capability | Implementation |
 |---|---|
-| Transport | Base45-encoded alphanumeric QR frames with CRC-32 validation |
-| Loss tolerance | Systematic fountain code with incremental GF(2) Gaussian elimination; frames may arrive in any order |
-| Encryption | Chunked AES-256-GCM (STREAM construction) bound to the transfer header |
-| Key agreement | Ephemeral ECDH P-256 through a one-time pairing code, confirmed by a six-digit verification code |
-| Passwords | PBKDF2-HMAC-SHA-256, 200,000 iterations, followed by HKDF-SHA-256 |
-| Integrity | Per-chunk authentication and a SHA-256 digest for every file |
-| Compression | DEFLATE, applied only when it reduces the payload |
-| Privacy | No network access, private storage, excluded from backups, optional app lock and screenshot protection |
+| Direct link | Wi-Fi Direct group with explicit credentials, LAN fallback, 256 KiB AES-256-GCM records, 1 MiB socket buffers |
+| Link security | Ephemeral ECDH P-256 bound to the scanned invitation, HKDF-SHA-256 per-direction keys, encrypted acknowledgement before any content is sent |
+| Optical transport | Base45-encoded alphanumeric QR frames with CRC-32, up to two codes per frame |
+| Loss tolerance | Systematic fountain code with incremental GF(2) Gaussian elimination |
+| Integrity | Authenticated records plus a SHA-256 digest for every file, confirmed back to the sender |
+| Privacy | No servers, no analytics, private storage excluded from backups, optional app lock and screenshot protection |
 | Languages | English and Arabic (formal), with full right-to-left support |
 
 ## Transfer modes
@@ -111,8 +116,8 @@ release.
 
 ## Requirements
 
-- Android 8.0 (API 26) or later
-- A rear camera on the receiving device
+- Android 8.0 (API 26) or later; Wi-Fi Direct transfers require Android 10 or later
+- A rear camera on the scanning device
 
 ## Licence
 
